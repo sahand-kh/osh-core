@@ -271,7 +271,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
     {
         FileReader reader = null;
         if (!configFile.exists())
-            return;
+            throw new RuntimeException("Cannot find config file " + configFile.getAbsolutePath());
         
         try
         {
