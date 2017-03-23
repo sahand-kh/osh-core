@@ -56,30 +56,13 @@ public class SensorEvent extends EntityEvent<Type>
 	 * @param sensorModule sensor module that generated the event
 	 * @param type type of event
 	 */
-	public SensorEvent(long timeStamp, ISensorModule<?> sensorModule, Type type)
+	public SensorEvent(long timeStamp, ISensor sensor, Type type)
 	{
-	    this(timeStamp,
-	         sensorModule.getUniqueIdentifier(),
-	         sensorModule,
-	         type);
-	}
-	
-	
-	/**
-	 * Constructs the event for a sensor that is part of a network
-	 * @param timeStamp unix time of event generation
-	 * @param sensorID Id of individual sensor in the network
-	 * @param sensorModule sensor module that generated the event
-	 * @param type type of event
-	 */
-	public SensorEvent(long timeStamp, String sensorID, ISensorModule<?> sensorModule, Type type)
-    {
 	    this.type = type;
-	    this.timeStamp = timeStamp;
-        //this.producerID = sensorModule.getLocalID();
-        this.source = sensorModule;
-        this.relatedEntityID = sensorID;
-    }
+        this.timeStamp = timeStamp;
+        this.source = sensor;
+        this.relatedEntityID = sensor.getUniqueIdentifier();
+	}
 	
 
 	/**
@@ -96,8 +79,8 @@ public class SensorEvent extends EntityEvent<Type>
     
     
 	@Override
-    public ISensorModule<?> getSource()
+    public ISensor getSource()
     {
-        return (ISensorModule<?>)this.source;
+        return (ISensor)this.source;
     }
 }

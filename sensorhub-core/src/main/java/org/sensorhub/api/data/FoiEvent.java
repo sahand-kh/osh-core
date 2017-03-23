@@ -71,48 +71,36 @@ public class FoiEvent extends EntityEvent<Type>
 	/**
 	 * Creates a {@link Type#NEW_FOI} event with only the feature ID
 	 * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
-     * @param srcModule module that generated the event
+     * @param producer producer that generated the event
 	 * @param foiID ID of feature of interest
      * @param startTime time at which observation of the FoI started (julian time in seconds, base 1970)
 	 */
-	public FoiEvent(long timeStamp, IDataProducerModule<?> srcModule, String foiID, double startTime)
+	public FoiEvent(long timeStamp, IDataProducer producer, String foiID, double startTime)
 	{
-	    this(timeStamp,
-	         srcModule.getUniqueIdentifier(),
-	         srcModule, foiID, startTime);
-	}
-	
-	
-	/**
-     * Creates a {@link Type#NEW_FOI} event with only the feature ID for a specific entity
-     * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
-	 * @param entityID Unique ID of entity observing the FOI identified by foiID
-     * @param srcModule module that generated the event
-     * @param foiID ID of feature of interest
-     * @param startTime time at which observation of the FoI started (julian time in seconds, base 1970)
-     */
-    public FoiEvent(long timeStamp, String entityID, IDataProducerModule<?> srcModule, String foiID, double startTime)
-    {
-        this.type = Type.NEW_FOI;
+	    this.type = Type.NEW_FOI;
         this.timeStamp = timeStamp;
-        this.source = srcModule;
-        this.relatedEntityID = entityID;
+        this.source = producer;
+        this.relatedEntityID = producer.getUniqueIdentifier();
         this.foiID = foiID;
-    }
+	}
 	
 	
 	/**
      * Creates a {@link Type#NEW_FOI} event with an attached feature object
      * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
-     * @param srcModule module that generated the event
+     * @param producer producer that generated the event
      * @param foi feature object
 	 * @param startTime time at which observation of the FoI started (julian time in seconds, base 1970)
      */
-	public FoiEvent(long timeStamp, IDataProducerModule<?> srcModule, AbstractFeature foi, double startTime)
+	public FoiEvent(long timeStamp, IDataProducer producer, AbstractFeature foi, double startTime)
     {
-        this(timeStamp,
-             srcModule.getUniqueIdentifier(),
-             srcModule, foi, startTime);
+        this.type = Type.NEW_FOI;
+        this.timeStamp = timeStamp;
+        this.source = producer;
+        this.relatedEntityID = producer.getUniqueIdentifier();
+        this.foi = foi;
+        this.foiID = foi.getUniqueIdentifier();
+        this.startTime = startTime;
     }
 	
 	
@@ -120,15 +108,15 @@ public class FoiEvent extends EntityEvent<Type>
      * Creates a {@link Type#NEW_FOI} event with an attached feature object for a specific entity
      * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
 	 * @param entityID Unique ID of entity observing the attached FOI
-     * @param srcModule module that generated the event
+     * @param producer producer that generated the event
      * @param foi feature object
      * @param startTime time at which observation of the FoI started (julian time in seconds, base 1970)
      */
-    public FoiEvent(long timeStamp, String entityID, IDataProducerModule<?> srcModule, AbstractFeature foi, double startTime)
+    public FoiEvent(long timeStamp, String entityID, IDataProducer producer, AbstractFeature foi, double startTime)
     {
         this.type = Type.NEW_FOI;
         this.timeStamp = timeStamp;
-        this.source = srcModule;
+        this.source = producer;
         this.relatedEntityID = entityID;
         this.foi = foi;
         this.foiID = foi.getUniqueIdentifier();

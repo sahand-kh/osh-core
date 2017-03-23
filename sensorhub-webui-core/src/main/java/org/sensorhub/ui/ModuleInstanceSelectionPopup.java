@@ -39,8 +39,7 @@ public class ModuleInstanceSelectionPopup extends Window
     }
     
     
-    @SuppressWarnings("rawtypes")
-    public ModuleInstanceSelectionPopup(final Class<? extends IModule> moduleType, final ModuleInstanceSelectionCallback callback)
+    public ModuleInstanceSelectionPopup(final Class<?> moduleType, final ModuleInstanceSelectionCallback callback)
     {
         super("Select Module");
         VerticalLayout layout = new VerticalLayout();

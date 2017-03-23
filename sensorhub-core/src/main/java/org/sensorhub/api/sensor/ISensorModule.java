@@ -14,9 +14,6 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.sensor;
 
-import java.util.Map;
-import net.opengis.sensorml.v20.AbstractPhysicalProcess;
-import org.sensorhub.api.common.IEventProducer;
 import org.sensorhub.api.data.IDataProducerModule;
 
 
@@ -31,50 +28,7 @@ import org.sensorhub.api.data.IDataProducerModule;
  * @param <ConfigType> 
  * @since Nov 5, 2010
  */
-public interface ISensorModule<ConfigType extends SensorConfig> extends IDataProducerModule<ConfigType>, IEventProducer
+public interface ISensorModule<ConfigType extends SensorConfig> extends IDataProducerModule<ConfigType>, ISensor
 {
     
-    /**
-     * Retrieves most current sensor description.
-     */
-    @Override
-    public AbstractPhysicalProcess getCurrentDescription();
-
-
-    /**
-     * Retrieves the list of interfaces to all sensor data outputs
-     */
-    @Override
-    public Map<String, ? extends ISensorDataInterface> getAllOutputs();
-
-
-    /**
-     * Retrieves the list of interface to sensor status outputs
-     * @return map of output names -> data interface objects
-     */
-    public Map<String, ? extends ISensorDataInterface> getStatusOutputs();
-
-
-    /**
-     * Retrieves the list of interface to sensor observation outputs
-     * @return map of output names -> data interface objects
-     */
-    public Map<String, ? extends ISensorDataInterface> getObservationOutputs();
-
-
-    /**
-     * Retrieves the list of interface to sensor command inputs
-     * @return map of input names -> control interface objects
-     */
-    public Map<String, ? extends ISensorControlInterface> getCommandInputs();
-
-
-    /**
-     * Returns the sensor connection status.<br/>
-     * This method must do whatever it can to really detect the presence of the sensor.
-     * Consequently, this method can block for long periods of time.
-     * @return true if sensor is actually connected and can communicate with the driver
-     */
-    public boolean isConnected();
-
 }

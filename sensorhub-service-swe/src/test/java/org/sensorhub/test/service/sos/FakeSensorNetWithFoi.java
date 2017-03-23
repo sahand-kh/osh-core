@@ -27,7 +27,10 @@ import net.opengis.gml.v32.Point;
 import net.opengis.gml.v32.impl.GMLFactory;
 import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.sensorml.v20.PhysicalComponent;
+import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IMultiSourceDataProducer;
+import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.test.sensor.FakeSensor;
 import org.vast.ogc.gml.GenericFeatureImpl;
 import org.vast.sensorML.SMLHelper;
@@ -66,34 +69,72 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
     
     
     @Override
-    public Collection<String> getEntityIDs()
+    public Set<String> getEntityIDs()
     {
         return fois.keySet();
     }
 
 
     @Override
-    public AbstractProcess getCurrentDescription(String entityID)
+    public IDataProducer getProducer(String entityID)
     {
-        SMLHelper fac = new SMLHelper();
-        PhysicalComponent sensor = fac.newPhysicalComponent();
-        sensor.setUniqueIdentifier(entityID);
-        sensor.setName("Networked sensor " + entityID.substring(entityID.lastIndexOf(':')+1));
-        return sensor;
-    }
+        class FakeDataProducer implements IDataProducer
+        {
+            String entityID;
+            PhysicalComponent sensor;
+            
+            public FakeDataProducer(String entityID)
+            {
+                this.entityID = entityID;
+                
+                SMLHelper fac = new SMLHelper();
+                sensor = fac.newPhysicalComponent();
+                sensor.setUniqueIdentifier(entityID);
+                sensor.setName("Networked sensor " + entityID.substring(entityID.lastIndexOf(':')+1));
+            }
+            
+            @Override
+            public String getUniqueIdentifier()
+            {
+                return entityID;
+            }
 
+            @Override
+            public AbstractProcess getCurrentDescription()
+            {
+                return sensor;
+            }
 
-    @Override
-    public double getLastDescriptionUpdate(String entityID)
-    {
-        return 0;
-    }
+            @Override
+            public long getLastDescriptionUpdate()
+            {
+                return 0;
+            }
 
+            @Override
+            public Map<String, ? extends IStreamingDataInterface> getAllOutputs()
+            {
+                return FakeSensorNetWithFoi.this.getAllOutputs();
+            }
 
-    @Override
-    public AbstractFeature getCurrentFeatureOfInterest(String entityID)
-    {
-        return fois.get(entityID);
+            @Override
+            public AbstractFeature getCurrentFeatureOfInterest()
+            {
+                return fois.get(entityID);
+            }
+
+            @Override
+            public void registerListener(IEventListener listener)
+            {                
+            }
+
+            @Override
+            public void unregisterListener(IEventListener listener)
+            {                
+            }            
+        };        
+        
+        return new FakeDataProducer(entityID);
     }
 
 

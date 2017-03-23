@@ -20,6 +20,7 @@ import net.opengis.swe.v20.DataBlock;
 import org.sensorhub.api.common.CommandStatus;
 import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.data.ICommandReceiver;
 import org.sensorhub.api.common.CommandStatus.StatusCode;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorModule;
@@ -69,7 +70,7 @@ public abstract class AbstractSensorControl<SensorType extends ISensorModule<?>>
     
     
     @Override
-    public ISensorModule<?> getParentSensor()
+    public ICommandReceiver getParentModule()
     {
         return parentSensor;
     }
@@ -128,13 +129,6 @@ public abstract class AbstractSensorControl<SensorType extends ISensorModule<?>>
 
 
     @Override
-    public boolean isStatusHistorySupported()
-    {
-        return false;
-    }
-
-
-    @Override
     public CommandStatus sendCommand(DataBlock command) throws SensorException
     {
         throw new SensorException(ERROR_NO_ASYNC + MsgUtils.moduleClassAndId(parentSensor));
@@ -173,13 +167,6 @@ public abstract class AbstractSensorControl<SensorType extends ISensorModule<?>>
     public CommandStatus getCommandStatus(String commandID) throws SensorException
     {
         throw new SensorException(ERROR_NO_ASYNC + MsgUtils.moduleClassAndId(parentSensor));
-    }
-
-
-    @Override
-    public List<CommandStatus> getCommandStatusHistory(String commandID) throws SensorException
-    {
-        throw new SensorException(ERROR_NO_STATUS_HISTORY + MsgUtils.moduleClassAndId(parentSensor));
     }
 
     

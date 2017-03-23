@@ -15,7 +15,6 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.api.sensor;
 
 import org.sensorhub.api.data.DataEvent;
-import org.sensorhub.api.data.IStreamingDataInterface;
 import net.opengis.swe.v20.DataBlock;
 
 
@@ -32,8 +31,7 @@ public class SensorDataEvent extends DataEvent
 {    
 	
 	/**
-	 * Constructs an event for data produced by an isolated sensor.<br/>
-	 * The sensor ID is obtained from the sensor description of the parent sensor module.
+	 * Constructs an event for data produced by the specified sensor output.
 	 * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
      * @param dataInterface sensor output interface that produced the associated data
 	 * @param records arrays of records that triggered this notification
@@ -41,24 +39,9 @@ public class SensorDataEvent extends DataEvent
 	public SensorDataEvent(long timeStamp, ISensorDataInterface dataInterface, DataBlock ... records)
 	{
 		super(timeStamp,
-		      dataInterface.getParentModule().getUniqueIdentifier(),
 		      dataInterface,
 		      records);
 	}
-	
-	
-	/**
-     * Constructs an event for data produced by the specified sensor.<br/>
-     * This flavor is used to identify a particular sensor within a network.
-     * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
-     * @param sensorID Unique ID of the sensor that produced the data
-     * @param dataInterface stream interface that generated the associated data
-     * @param records arrays of records that triggered this notification
-     */
-    public SensorDataEvent(long timeStamp, String sensorID, IStreamingDataInterface dataInterface, DataBlock ... records)
-    {
-        super(timeStamp, sensorID, dataInterface, records);
-    }
 	
 	
 	/**

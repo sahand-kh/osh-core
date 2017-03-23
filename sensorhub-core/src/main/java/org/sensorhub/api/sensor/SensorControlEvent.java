@@ -42,14 +42,14 @@ public class SensorControlEvent extends EntityEvent<CommandStatus.StatusCode>
      */
     public SensorControlEvent(long timeStamp, ISensorControlInterface controlInterface, CommandStatus status)
     {
-        this(timeStamp, controlInterface.getParentSensor().getLocalID(), controlInterface, status);
+        this(timeStamp, controlInterface.getParentModule().getUniqueIdentifier(), controlInterface, status);
     }
     
     
     /**
      * Constructs the event for a sensor that is part of a network
      * @param timeStamp unix time of event generation
-     * @param sensorID ID of individual sensor in the network
+     * @param sensorID Unique ID of individual sensor in the network
      * @param controlInterface sensor control interface that generated the event
      * @param status status of command at time the event is generated
      */
@@ -57,7 +57,6 @@ public class SensorControlEvent extends EntityEvent<CommandStatus.StatusCode>
     {
         this.timeStamp = timeStamp;
         this.source = controlInterface;
-        //this.producerID = controlInterface.getParentSensor().getLocalID();
         this.relatedEntityID = sensorID;
         this.type = status.status;
     }

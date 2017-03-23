@@ -28,7 +28,7 @@ import net.opengis.swe.v20.DataComponent;
 import org.sensorhub.api.common.Event;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.data.DataEvent;
-import org.sensorhub.api.data.IDataProducerModule;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.processing.DataSourceConfig;
@@ -227,17 +227,17 @@ public abstract class AbstractStreamProcess<ConfigType extends StreamProcessConf
         
         // attemp to connect to all configured data sources
         // we keep sources in WeakHashMaps so that source modules can be properly GCed when unloaded
-        for (DataSourceConfig dataSource: config.dataSources)
+        for (DataSourceConfig dataSrcConfig: config.dataSources)
         {
             ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
-            if (!isCompatibleDataSource(dataSource))
+            if (!isCompatibleDataSource(dataSrcConfig))
                 throw new ProcessException("Data source is not supported");
             
             // case of streaming data source
-            if (dataSource instanceof StreamingDataSourceConfig)
+            if (dataSrcConfig instanceof StreamingDataSourceConfig)
             {
-                StreamingDataSourceConfig streamSrc = (StreamingDataSourceConfig) dataSource;
-                IDataProducerModule<?> srcModule = (IDataProducerModule<?>)moduleReg.getModuleById(streamSrc.producerID);
+                StreamingDataSourceConfig streamSrc = (StreamingDataSourceConfig) dataSrcConfig;
+                IDataProducer dataSrc = (IDataProducer)moduleReg.getModuleById(streamSrc.producerID);
                 
                 for (InputLinkConfig inputLink: streamSrc.inputConnections)
                 {
@@ -253,7 +253,7 @@ public abstract class AbstractStreamProcess<ConfigType extends StreamProcessConf
                         firstSepIndex = inputLink.source.indexOf('/');
                         String outputName = (firstSepIndex < 0) ? inputLink.source : inputLink.source.substring(0, firstSepIndex);
                         compPath = (firstSepIndex < 0) ? "/" : inputLink.source.substring(firstSepIndex+1);
-                        streamInterface = srcModule.getAllOutputs().get(outputName);
+                        streamInterface = dataSrc.getAllOutputs().get(outputName);
                         if (streamInterface == null)
                             throw new ProcessException("Output " + outputName + " doesn't exist");
                         
@@ -272,7 +272,7 @@ public abstract class AbstractStreamProcess<ConfigType extends StreamProcessConf
                     catch (Exception e)
                     {
                         throw new ProcessException("Error while connecting to output signal " + inputLink.source +
-                                                   " of " + MsgUtils.moduleString(srcModule), e);
+                                                   " of " + dataSrc.getUniqueIdentifier(), e);
                     }
                     
                     // connect to this process input component
@@ -305,7 +305,7 @@ public abstract class AbstractStreamProcess<ConfigType extends StreamProcessConf
             }
             
             // case of storage data source
-            else if (dataSource instanceof StorageDataSourceConfig)
+            else if (dataSrcConfig instanceof StorageDataSourceConfig)
             {
                 // TODO what do we do with storage input?
                 // should it be handled by the process impl directly?

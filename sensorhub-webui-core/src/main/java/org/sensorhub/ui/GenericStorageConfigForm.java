@@ -18,7 +18,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.sensorhub.api.data.IDataProducerModule;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.module.IModuleProvider;
 import org.sensorhub.api.persistence.IStorageProvider;
 import org.sensorhub.impl.persistence.MaxAgeAutoPurgeConfig;
@@ -50,7 +50,7 @@ public class GenericStorageConfigForm extends GenericConfigForm implements IModu
         
         else if (propId.equals(PROP_DATASRC_ID))
         {
-            field = makeModuleSelectField(field, IDataProducerModule.class);
+            field = makeModuleSelectField(field, IDataProducer.class);
             field.addValidator(new StringLengthValidator(MSG_REQUIRED_FIELD, 1, 256, false));
         }
         

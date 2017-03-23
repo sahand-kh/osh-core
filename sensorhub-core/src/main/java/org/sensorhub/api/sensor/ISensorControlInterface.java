@@ -16,9 +16,9 @@ package org.sensorhub.api.sensor;
 
 import java.util.List;
 import net.opengis.swe.v20.DataBlock;
-import net.opengis.swe.v20.DataComponent;
 import org.sensorhub.api.common.CommandStatus;
 import org.sensorhub.api.common.IEventProducer;
+import org.sensorhub.api.data.IStreamingControlInterface;
 import org.vast.util.DateTime;
 
 
@@ -34,30 +34,8 @@ import org.vast.util.DateTime;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 5, 2010
  */
-public interface ISensorControlInterface extends IEventProducer
+public interface ISensorControlInterface extends IStreamingControlInterface, IEventProducer
 {
-
-    /**
-     * Allows by-reference access to parent sensor interface
-     * @return the parent sensor module instance
-     */
-    public ISensorModule<?> getParentSensor();
-    
-    
-    /**
-     * Gets the interface name. It should be the name reported in the map by
-     * {@link org.sensorhub.api.sensor.ISensorModule#getCommandInputs()} 
-     * @return name of this control interface
-     */
-    public String getName();
-
-
-    /**
-     * Checks if this interface is enabled
-     * @return true if interface is enabled, false otherwise
-     */
-    public boolean isEnabled();
-
 
     /**
      * Checks asynchronous execution capability 
@@ -70,41 +48,7 @@ public interface ISensorControlInterface extends IEventProducer
      * Checks scheduled execution capability 
      * @return true if scheduled command execution is supported, false otherwise
      */
-    public boolean isSchedulingSupported();
-
-
-    /**
-     * Checks status history capability
-     * @return true if status history is supported, false otherwise
-     */
-    public boolean isStatusHistorySupported();
-
-
-    /**
-     * Retrieves description of command message
-     * Note that this can be a choice of multiple messages
-     * @return Data component containing message structure
-     */
-    public DataComponent getCommandDescription();
-
-
-    /**
-     * Executes the command synchronously, blocking until completion of command
-     * @param command command message data
-     * @return status after execution of command
-     * @throws SensorException
-     */
-    public CommandStatus execCommand(DataBlock command) throws SensorException;
-
-
-    /**
-     * Executes multiple commands synchronously and in the order specified.
-     * This method will block until all commands are completed
-     * @param commands list of command messages data
-     * @return a single status message for the command group
-     * @throws SensorException
-     */
-    public CommandStatus execCommandGroup(List<DataBlock> commands) throws SensorException;
+    public boolean isSchedulingSupported();    
 
 
     /**
@@ -169,15 +113,5 @@ public interface ISensorControlInterface extends IEventProducer
      * @throws SensorException
      */
     public CommandStatus getCommandStatus(String commandID) throws SensorException;
-
-
-    /**
-     * Gets complete status history for the specified command
-     * @see #isStatusHistorySupported()
-     * @param commandID id of command to get status history for
-     * @return list of command status, one object for each status change
-     * @throws SensorException
-     */
-    public List<CommandStatus> getCommandStatusHistory(String commandID) throws SensorException;
 
 }

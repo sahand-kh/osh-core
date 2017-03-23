@@ -15,8 +15,8 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.api.data;
 
 import java.util.Collection;
+import java.util.Set;
 import net.opengis.gml.v32.AbstractFeature;
-import net.opengis.sensorml.v20.AbstractProcess;
 
 
 /**
@@ -38,37 +38,17 @@ public interface IMultiSourceDataProducer
     /**
      * @return List of entity IDs for which this module produces data
      */
-    public Collection<String> getEntityIDs();
+    public Set<String> getEntityIDs();
     
     
     /**
-     * Retrieves the most current SensorML description of the given entity.
-     * @param entityID unique ID of the desired entity (e.g. sensor in a network)
-     * @return AbstractProcess SensorML description of the data producing entity
-     * or null if no description is available
+     * Retrieves the producer interface of the given entity ID
+     * @param entityID
+     * @return
      */
-    public AbstractProcess getCurrentDescription(String entityID);
+    public IDataProducer getProducer(String entityID);
     
-    
-    /**
-     * Used to check when SensorML description of the given entity was last updated.
-     * This is useful to avoid requesting the object when it hasn't changed.
-     * @param entityID unique ID of the desired entity (e.g. sensor in a network)
-     * @return Date/time of last description update as julian time (1970) or
-     * {@link Long#MIN_VALUE} if description was never updated.
-     */
-    public double getLastDescriptionUpdate(String entityID);
-    
-    
-    /**
-     * Retrieves the feature of interest for which the given entity is 
-     * currently generating data.<br/>
-     * @param entityID unique ID of the desired entity (e.g. sensor in a network)
-     * @return Feature object
-     */
-    public AbstractFeature getCurrentFeatureOfInterest(String entityID);
-    
-    
+        
     /**
      * @return List of all features of interest for which this producer
      * is generating data.

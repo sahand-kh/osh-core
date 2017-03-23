@@ -47,6 +47,12 @@ public class DataEvent extends EntityEvent<Type>
          */
         DATA_UPDATED
     };
+    
+    
+    /**
+     * Name of channel that produced the event
+     */
+    protected String channelID;
 	
 	
 	/**
@@ -59,34 +65,20 @@ public class DataEvent extends EntityEvent<Type>
 	
 	
 	/**
-	 * Constructs a data event with no related entity
+	 * Constructs a data event generated from the given data interface
 	 * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
      * @param dataInterface stream interface that generated the associated data
 	 * @param records arrays of records that triggered this notification
 	 */
 	public DataEvent(long timeStamp, IStreamingDataInterface dataInterface, DataBlock ... records)
 	{
-	    this(timeStamp, null, dataInterface, records);
-	}
-	
-	
-	/**
-     * Constructs a data event associated to an identifiable entity
-     * @param timeStamp time of event generation (unix time in milliseconds, base 1970)
-	 * @param entityID Unique ID of entity that produced the data records
-     * @param dataInterface stream interface that generated the associated data
-     * @param records arrays of records that triggered this notification
-     */
-    public DataEvent(long timeStamp, String entityID, IStreamingDataInterface dataInterface, DataBlock ... records)
-    {
-        this.type = Type.NEW_DATA_AVAILABLE;
+	    this.type = Type.NEW_DATA_AVAILABLE;
         this.timeStamp = timeStamp;
-        //this.producerID = dataInterface.getParentModule().getLocalID();
-        //this.channelID = dataInterface.getName();
         this.source = dataInterface;
-        this.relatedEntityID = entityID;
+        this.channelID = dataInterface.getName();
+        this.relatedEntityID = dataInterface.getParentModule().getUniqueIdentifier();
         this.records = records;
-    }
+	}
 		
 	
 	@Override
@@ -100,6 +92,15 @@ public class DataEvent extends EntityEvent<Type>
     public IStreamingDataInterface getSource()
     {
         return (IStreamingDataInterface)this.source;
+    }
+        
+    
+    /**
+     * @return Name of channel the event was produced on (e.g. output name)
+     */
+    public String getChannelID()
+    {
+        return channelID;
     }
 	   
 	

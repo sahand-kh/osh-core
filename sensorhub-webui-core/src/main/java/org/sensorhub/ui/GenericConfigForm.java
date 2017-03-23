@@ -369,7 +369,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     
     
     @SuppressWarnings("rawtypes")
-    protected Field<Object> makeModuleSelectField(Field<Object> field, final Class<? extends IModule> moduleType)
+    protected Field<Object> makeModuleSelectField(Field<Object> field, final Class<?> moduleType)
     {
         field = new FieldWrapper<Object>(field) {
             private static final long serialVersionUID = -992750405944982226L;

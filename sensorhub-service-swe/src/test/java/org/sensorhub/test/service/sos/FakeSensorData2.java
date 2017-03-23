@@ -169,13 +169,14 @@ public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> 
                     latestRecordTime = System.currentTimeMillis();
                     latestRecord = data;
                     
+                    // if testing multisource producer
                     if (obsFoiMap != null)
                     {
                         Integer foiNum = obsFoiMap.get(sampleCount);
                         if (foiNum != null)
                         {
                             String entityID = FakeSensorNetWithFoi.SENSOR_UID_PREFIX + foiNum;
-                            AbstractFeature foi = FakeSensorData2.this.getParentModule().getCurrentFeatureOfInterest(entityID);
+                            AbstractFeature foi = FakeSensorData2.this.getParentModule().getProducer(entityID).getCurrentFeatureOfInterest();
                             eventHandler.publishEvent(new FoiEvent(latestRecordTime, getParentModule(), foi, latestRecordTime/1000.));
                             System.out.println("Observing FOI #" + foiNum);
                         }
