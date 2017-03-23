@@ -1,4 +1,4 @@
-ext.oshCoreVersion = '1.2.1-SNAPSHOT'
+ext.oshCoreVersion = '1.3.0-SNAPSHOT'
 
 
 allprojects  {
