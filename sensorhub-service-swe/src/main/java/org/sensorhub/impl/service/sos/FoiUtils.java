@@ -18,25 +18,34 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import net.opengis.OgcProperty;
+import net.opengis.OgcPropertyList;
 import net.opengis.gml.v32.AbstractFeature;
 import net.opengis.gml.v32.AbstractGeometry;
 import net.opengis.gml.v32.Envelope;
-import net.opengis.swe.v20.DataChoice;
+import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataRecord;
 import org.sensorhub.api.data.IDataProducerModule;
-import org.sensorhub.api.data.IMultiSourceDataInterface;
 import org.sensorhub.api.data.IMultiSourceDataProducer;
 import org.sensorhub.api.persistence.IFoiFilter;
+import org.sensorhub.impl.persistence.FilterUtils;
+import org.sensorhub.impl.persistence.FilteredIterator;
+import org.vast.data.AbstractDataBlock;
+import org.vast.data.DataBlockMixed;
+import org.vast.data.DataBlockString;
+import org.vast.data.DataBlockTuple;
 import org.vast.ogc.gml.GMLUtils;
 import org.vast.ows.sos.SOSOfferingCapabilities;
+import org.vast.swe.SWEConstants;
+import org.vast.swe.SWEHelper;
 import org.vast.util.Bbox;
 
 
 public class FoiUtils
 {
-
+    static final String FOI_ID_LABEL = "FOI ID";
+    
+    
     public static void updateFois(SOSOfferingCapabilities caps, IDataProducerModule<?> producer, int maxFois)
     {
         caps.getRelatedFeatures().clear();
@@ -83,7 +92,7 @@ public class FoiUtils
     }
     
     
-    public static Iterator<AbstractFeature> getFilteredFoiIterator(IDataProducerModule<?> producer, IFoiFilter filter)
+    public static Iterator<AbstractFeature> getFilteredFoiIterator(IDataProducerModule<?> producer, final IFoiFilter filter)
     {
         // get all fois from producer
         Iterator<? extends AbstractFeature> allFois;
@@ -98,26 +107,87 @@ public class FoiUtils
         if ((filter.getFeatureIDs() == null || filter.getFeatureIDs().isEmpty()) && filter.getRoi() == null)
             return (Iterator<AbstractFeature>)allFois;
         
-        return new FilteredFoiIterator(allFois, filter);
+        return new FilteredIterator<AbstractFeature>((Iterator<AbstractFeature>)allFois)
+        {
+            @Override
+            protected boolean accept(AbstractFeature f)
+            {
+                if (FilterUtils.isFeatureSelected(filter, f))
+                    return true;
+                else
+                    return false;
+            }    
+        };
     }
     
     
-    public static String findEntityIDComponentURI(DataComponent dataStruct)
+    public final static DataComponent buildFoiIDComponent(IMultiSourceDataProducer multiProducer)
     {
-        if (dataStruct instanceof DataRecord)
-        {        
-            for (int i = 0; i < dataStruct.getComponentCount(); i++)
+        // try to detect common prefix
+        StringBuilder prefix = null;
+        for (String uid: multiProducer.getEntityIDs())
+        {
+            if (prefix == null)
+                prefix = new StringBuilder();
+            else
             {
-                OgcProperty<DataComponent> prop = ((DataRecord) dataStruct).getFieldList().getProperty(i);
-                if (IMultiSourceDataInterface.ENTITY_ID_URI.equals(prop.getRole()))
-                    return prop.getValue().getDefinition();
+                // prefix cannot be longer than ID
+                if (prefix.length() > uid.length())
+                    prefix.setLength(uid.length());
+                
+                // keep only common chars
+                for (int i = 0; i < prefix.length(); i++)
+                {
+                    if (uid.charAt(i) != prefix.charAt(i))
+                    {
+                        prefix.setLength(i);
+                        break;
+                    }
+                }
             }
         }
-        else if (dataStruct instanceof DataChoice)
+        
+        // use category component if prefix was detected
+        // or text component otherwise
+        SWEHelper fac = new SWEHelper();
+        if (prefix.length() > 2)
+            return fac.newCategory(SWEConstants.DEF_FOI_ID, FOI_ID_LABEL, null, prefix.toString());
+        else
+            return fac.newText(SWEConstants.DEF_FOI_ID, FOI_ID_LABEL, null);
+    }
+
+    
+    public final static void addFoiID(DataComponent dataStruct, DataComponent producerIDField)
+    {
+        String foiCompName = "foiID";
+        
+        if (dataStruct instanceof DataRecord)
         {
-            return findEntityIDComponentURI(dataStruct.getComponent(0));
+            OgcPropertyList<DataComponent> fields = ((DataRecord) dataStruct).getFieldList();
+            producerIDField.setName(foiCompName);
+            fields.add(0, producerIDField);
+        }
+        else
+        {
+            SWEHelper fac = new SWEHelper();
+            DataRecord rec = fac.newDataRecord();
+            rec.addField(foiCompName, producerIDField);
+            rec.addField("data", dataStruct);
+        }
+    }
+    
+    
+    public final static DataBlock addFoiID(DataBlock dataBlk)
+    {
+        if (dataBlk instanceof DataBlockMixed || dataBlk instanceof DataBlockTuple)
+        {
+            AbstractDataBlock[] blockArray = (AbstractDataBlock[])dataBlk.getUnderlyingObject();
+            AbstractDataBlock[] newArray = new AbstractDataBlock[blockArray.length+1];
+            newArray[0] = new DataBlockString(1);
+            System.arraycopy(blockArray, 0, newArray, 1, blockArray.length);
+            dataBlk.setUnderlyingObject(blockArray);
         }
         
-        return null;
+        return dataBlk;
     }
 }

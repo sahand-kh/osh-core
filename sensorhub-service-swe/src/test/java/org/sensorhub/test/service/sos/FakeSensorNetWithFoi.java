@@ -42,28 +42,95 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
     static String FOI_UID_PREFIX = "urn:blabla:myfois:";
     static String SENSOR_UID_PREFIX = "urn:blabla:sensors:";
     GMLFactory gmlFac = new GMLFactory(true);
+    Map<String, IDataProducer> producers;
     Map<String, AbstractFeature> fois;
     Set<String> foiIDs;
     
     
+    class FakeDataProducer implements IDataProducer
+    {
+        String entityID;
+        PhysicalComponent sensor;
+        
+        public FakeDataProducer(String entityID)
+        {
+            this.entityID = entityID;
+            
+            SMLHelper fac = new SMLHelper();
+            sensor = fac.newPhysicalComponent();
+            sensor.setUniqueIdentifier(entityID);
+            sensor.setName("Networked sensor " + entityID.substring(entityID.lastIndexOf(':')+1));
+        }
+        
+        @Override
+        public String getUniqueIdentifier()
+        {
+            return entityID;
+        }
+
+        @Override
+        public AbstractProcess getCurrentDescription()
+        {
+            return sensor;
+        }
+
+        @Override
+        public long getLastDescriptionUpdate()
+        {
+            return 0;
+        }
+
+        @Override
+        public Map<String, ? extends IStreamingDataInterface> getAllOutputs()
+        {
+            return FakeSensorNetWithFoi.this.getAllOutputs();
+        }
+
+        @Override
+        public AbstractFeature getCurrentFeatureOfInterest()
+        {
+            return fois.get(entityID);
+        }
+
+        @Override
+        public void registerListener(IEventListener listener)
+        {                
+        }
+
+        @Override
+        public void unregisterListener(IEventListener listener)
+        {                
+        }            
+    };
+    
+    
     public FakeSensorNetWithFoi()
     {
+        producers = new LinkedHashMap<String, IDataProducer>();
         fois = new LinkedHashMap<String, AbstractFeature>();
         foiIDs = new LinkedHashSet<String>();
         
         for (int foiNum = 1; foiNum <= MAX_FOIS; foiNum++)
         {
+            String producerID = SENSOR_UID_PREFIX + foiNum;
+            
+            // create feature
             QName fType = new QName("http://myNsUri", "MyFeature");
             AbstractFeature foi = new GenericFeatureImpl(fType);
             foi.setId("F" + foiNum);
             foi.setUniqueIdentifier(FOI_UID_PREFIX + foiNum);
             foi.setName("FOI" + foiNum);
-            foi.setDescription("This is feature of interest #" + foiNum);                        
+            foi.setDescription("This is feature of interest #" + foiNum);
             Point p = gmlFac.newPoint();
             p.setPos(new double[] {foiNum, foiNum, 0.0});
             foi.setLocation(p);
-            fois.put(SENSOR_UID_PREFIX + foiNum, foi);
+            fois.put(producerID, foi);
             foiIDs.add(foi.getUniqueIdentifier());
+            
+            // create producer
+            
+            
+            producers.put(producerID, new FakeDataProducer(producerID));
         }        
     }
     
@@ -78,63 +145,7 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
     @Override
     public IDataProducer getProducer(String entityID)
     {
-        class FakeDataProducer implements IDataProducer
-        {
-            String entityID;
-            PhysicalComponent sensor;
-            
-            public FakeDataProducer(String entityID)
-            {
-                this.entityID = entityID;
-                
-                SMLHelper fac = new SMLHelper();
-                sensor = fac.newPhysicalComponent();
-                sensor.setUniqueIdentifier(entityID);
-                sensor.setName("Networked sensor " + entityID.substring(entityID.lastIndexOf(':')+1));
-            }
-            
-            @Override
-            public String getUniqueIdentifier()
-            {
-                return entityID;
-            }
-
-            @Override
-            public AbstractProcess getCurrentDescription()
-            {
-                return sensor;
-            }
-
-            @Override
-            public long getLastDescriptionUpdate()
-            {
-                return 0;
-            }
-
-            @Override
-            public Map<String, ? extends IStreamingDataInterface> getAllOutputs()
-            {
-                return FakeSensorNetWithFoi.this.getAllOutputs();
-            }
-
-            @Override
-            public AbstractFeature getCurrentFeatureOfInterest()
-            {
-                return fois.get(entityID);
-            }
-
-            @Override
-            public void registerListener(IEventListener listener)
-            {                
-            }
-
-            @Override
-            public void unregisterListener(IEventListener listener)
-            {                
-            }            
-        };        
-        
-        return new FakeDataProducer(entityID);
+        return producers.get(entityID);
     }
 
 

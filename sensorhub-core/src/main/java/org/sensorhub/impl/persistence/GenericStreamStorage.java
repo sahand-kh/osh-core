@@ -89,7 +89,6 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
     Map<String, String> currentFoiMap = new HashMap<String, String>(); // entity ID -> current FOI ID
     Set<String> registeredProducers = new HashSet<String>();
     long lastCommitTime = Long.MIN_VALUE;
-    String currentFoi;
     Timer autoPurgeTimer;
     
     
@@ -185,20 +184,19 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         else if (dataSource.getLastDescriptionUpdate() != Long.MIN_VALUE)
             dataStore.updateDataSourceDescription(dataSource.getCurrentDescription());
             
-        // create data store for each output not already registered
+        // add record store for each selected output that is not already registered
         for (IStreamingDataInterface output: getSelectedOutputs(dataSource))
         {
             if (!dataStore.getRecordStores().containsKey(output.getName()))
                 dataStore.addRecordStore(output.getName(), output.getRecordDescription(), output.getRecommendedEncoding());
         }
         
-        // also init current FOI
+        // init current FOI
         String producerID = dataSource.getUniqueIdentifier();
         AbstractFeature foi = dataSource.getCurrentFeatureOfInterest();
         if (foi != null)
         {
-            currentFoi = foi.getUniqueIdentifier();
-            currentFoiMap.put(producerID, currentFoi);
+            currentFoiMap.put(producerID, foi.getUniqueIdentifier());
             if (dataStore instanceof IObsStorage)
                 ((IObsStorage)dataStore).storeFoi(producerID, foi);
         }
@@ -206,6 +204,9 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         // register to data events
         for (IStreamingDataInterface output: getSelectedOutputs(dataSource))
             prepareToReceiveEvents(output);
+        
+        // keep in set
+        registeredProducers.add(producerID);
         
         // if multisource, call recursively to connect nested producers
         if (dataSource instanceof IMultiSourceDataProducer && storage instanceof IMultiSourceStorage)
@@ -234,8 +235,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
                 if (dataStore == null)
                     dataStore = ((IMultiSourceStorage<?>)storage).addDataStore(producerID);
                 
-                connectDataSource(dataSource, dataStore);
-                registeredProducers.add(producerID);
+                connectDataSource(dataSource, dataStore);                
             }
         }
     }

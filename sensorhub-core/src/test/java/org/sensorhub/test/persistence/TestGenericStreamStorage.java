@@ -20,23 +20,24 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.sensorhub.api.common.SensorHubException;
+import org.sensorhub.api.persistence.FoiFilter;
 import org.sensorhub.api.persistence.StorageConfig;
-import org.sensorhub.api.sensor.ISensorModule;
-import org.sensorhub.api.sensor.SensorConfig;
 import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.persistence.GenericStreamStorage;
-import org.sensorhub.impl.persistence.InMemoryBasicStorage;
+import org.sensorhub.impl.persistence.InMemoryObsStorage;
 import org.sensorhub.impl.persistence.InMemoryStorageConfig;
 import org.sensorhub.impl.persistence.StreamStorageConfig;
-import org.sensorhub.test.sensor.FakeSensor;
 import org.sensorhub.test.sensor.FakeSensorData;
+import org.sensorhub.test.sensor.FakeSensorWithPos;
+import org.sensorhub.test.sensor.SensorConfigWithPos;
 
 
 public class TestGenericStreamStorage
 {
     private final static String OUTPUT_NAME = "out1";
     File configFile;
+    FakeSensorWithPos fakeSensor;
     FakeSensorData fakeSensorData;
     GenericStreamStorage storage;
     ModuleRegistry registry;
@@ -49,36 +50,63 @@ public class TestGenericStreamStorage
         registry = SensorHub.getInstance().getModuleRegistry();
         
         // create test sensor
-        SensorConfig sensorCfg = new SensorConfig();
+        SensorConfigWithPos sensorCfg = new SensorConfigWithPos();
         sensorCfg.autoStart = false;
-        sensorCfg.moduleClass = FakeSensor.class.getCanonicalName();
+        sensorCfg.moduleClass = FakeSensorWithPos.class.getCanonicalName();
         sensorCfg.name = "Sensor1";
-        ISensorModule<?> sensor = (ISensorModule<?>)registry.loadModule(sensorCfg);
-        fakeSensorData = new FakeSensorData((FakeSensor)sensor, OUTPUT_NAME, 10, 0.1, 10);
-        ((FakeSensor)sensor).setDataInterfaces(fakeSensorData);
-        registry.startModule(sensor.getLocalID());
+        sensorCfg.setLocation(45., 2.5, 325.);
+        fakeSensor = (FakeSensorWithPos)registry.loadModule(sensorCfg);
+        fakeSensorData = new FakeSensorData(fakeSensor, OUTPUT_NAME, 10, 0.05, 10);
+        fakeSensor.setDataInterfaces(fakeSensorData);
+        registry.startModule(fakeSensor.getLocalID());
         
         // create test storage
         StreamStorageConfig genericStorageConfig = new StreamStorageConfig();
         genericStorageConfig.moduleClass = GenericStreamStorage.class.getCanonicalName();
         genericStorageConfig.name = "SensorStorageTest";
         genericStorageConfig.autoStart = true;
-        genericStorageConfig.dataSourceID = sensor.getLocalID();
+        genericStorageConfig.dataSourceID = fakeSensor.getLocalID();
         StorageConfig storageConfig = new InMemoryStorageConfig();
-        storageConfig.moduleClass = InMemoryBasicStorage.class.getCanonicalName();
+        storageConfig.moduleClass = InMemoryObsStorage.class.getCanonicalName();
         genericStorageConfig.storageConfig = storageConfig;
         storage = (GenericStreamStorage)registry.loadModule(genericStorageConfig);
     }
     
     
     @Test
-    public void testAddRecordToStorage() throws Exception
+    public void testSaveDescription() throws Exception
     {
         while (fakeSensorData.isEnabled())
             Thread.sleep((long)(fakeSensorData.getAverageSamplingPeriod() * 500));
         
         Thread.sleep(100);
-        assertEquals(fakeSensorData.getMaxSampleCount(), storage.getNumRecords(OUTPUT_NAME));
+        assertTrue("Description should not be null", storage.getLatestDataSourceDescription() != null);
+        assertEquals("Incorrect sensor description", fakeSensor.getCurrentDescription(), storage.getLatestDataSourceDescription());
+    }
+    
+    
+    @Test
+    public void testSaveRecords() throws Exception
+    {
+        while (fakeSensorData.isEnabled())
+            Thread.sleep((long)(fakeSensorData.getAverageSamplingPeriod() * 500));
+        
+        Thread.sleep(100);
+        assertEquals("Wrong number of records in storage", fakeSensorData.getMaxSampleCount(), storage.getNumRecords(OUTPUT_NAME));
+    }
+    
+    
+    @Test
+    public void testSaveFoi() throws Exception
+    {
+        while (fakeSensorData.isEnabled())
+            Thread.sleep((long)(fakeSensorData.getAverageSamplingPeriod() * 500));
+        
+        Thread.sleep(100);
+        
+        FoiFilter filter = new FoiFilter();
+        assertEquals("Wrong number of FOIs in storage", 1, storage.getNumFois(filter));
+        assertEquals("Incorrect feature of interest", fakeSensor.getCurrentFeatureOfInterest(), storage.getFois(filter).next());
     }
     
     

@@ -188,7 +188,7 @@ public class TestSOSService
         // create test sensor
         SensorConfig sensorCfg = new SensorConfig();
         sensorCfg.autoStart = false;
-        sensorCfg.moduleClass = FakeSensorNetWithFoi.class.getCanonicalName();
+        sensorCfg.moduleClass = FakeSensor.class.getCanonicalName();
         sensorCfg.name = "Sensor1";
         FakeSensor sensor = (FakeSensor)SensorHub.getInstance().getModuleRegistry().loadModule(sensorCfg);
         sensor.setSensorUID(UID_SENSOR1);
@@ -788,6 +788,18 @@ public class TestSOSService
     
     
     @Test
+    public void testGetResultNowMultiFoi() throws Exception
+    {
+        SensorDataProviderConfig provider1 = buildSensorProvider2();
+        deployService(provider1);
+        startSending(provider1, true);
+        
+        String[] records = sendGetResult(URI_OFFERING2, URI_PROP1_FIELD2, TIMERANGE_NOW);
+        checkGetResultResponse(records, 4, 2);
+    }
+    
+    
+    @Test
     public void testGetResultNowDisabledSensor() throws Exception
     {
         SensorDataProviderConfig provider1 = buildSensorProvider1();
@@ -839,11 +851,11 @@ public class TestSOSService
     {
         deployService(buildSensorProvider1(), buildSensorProvider2());
         
-        String[] records = sendGetResult(URI_OFFERING1, URI_PROP1, TIMERANGE_FUTURE);
-        checkGetResultResponse(records, NUM_GEN_SAMPLES, 4);
+        //String[] records = sendGetResult(URI_OFFERING1, URI_PROP1, TIMERANGE_FUTURE);
+        //checkGetResultResponse(records, NUM_GEN_SAMPLES, 4);
         
-        records = sendGetResult(URI_OFFERING2, URI_PROP1, TIMERANGE_FUTURE);
-        checkGetResultResponse(records, NUM_GEN_SAMPLES, 4);
+        String[] records = sendGetResult(URI_OFFERING2, URI_PROP1, TIMERANGE_FUTURE);
+        checkGetResultResponse(records, NUM_GEN_SAMPLES*FakeSensorNetWithFoi.MAX_FOIS, 4);
     }
     
     
@@ -1243,10 +1255,10 @@ public class TestSOSService
         // wait until data has been produced and archived
         FakeSensor sensor = getSensorModule(1);
         while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
-            Thread.sleep(((long)SAMPLING_PERIOD*500));
-        
+            Thread.sleep(((long)SAMPLING_PERIOD*500));        
+
+        testGetFoisByProcedure(Arrays.asList(UID_SENSOR1), new int[0]);
         testGetFoisByProcedure(Arrays.asList(UID_SENSOR2), 1, 2, 3);
-        testGetFoisByProcedure(Arrays.asList(UID_SENSOR1), 1, 2, 3);
         testGetFoisByProcedure(Arrays.asList(UID_SENSOR1, UID_SENSOR2), 1, 2, 3);
     }
     

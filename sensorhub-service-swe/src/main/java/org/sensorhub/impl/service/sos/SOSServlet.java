@@ -1048,12 +1048,9 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             dataProvider = getDataProvider(request.getOffering(), filter);
             
             // build filtered component tree
-            // always keep sampling time and entity ID if present
+            // always keep sampling time
             DataComponent filteredStruct = dataProvider.getResultStructure().copy();
             request.getObservables().add(SWEConstants.DEF_SAMPLING_TIME);
-            String entityComponentUri = FoiUtils.findEntityIDComponentURI(filteredStruct);
-            if (entityComponentUri != null)
-                request.getObservables().add(entityComponentUri);
             filteredStruct.accept(new DataStructFilter(request.getObservables()));
             
             // build and send response
@@ -1161,11 +1158,8 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                 DataStreamWriter writer = SWEHelper.createDataWriter(resultEncoding);
                 
                 // we also do filtering here in case data provider hasn't modified the datablocks
-                // always keep sampling time and entity ID if present
-                request.getObservables().add(SWEConstants.DEF_SAMPLING_TIME);
-                String entityComponentUri = FoiUtils.findEntityIDComponentURI(resultStructure);
-                if (entityComponentUri != null)
-                    request.getObservables().add(entityComponentUri);
+                // always keep sampling time
+                request.getObservables().add(SWEConstants.DEF_SAMPLING_TIME);                
                 // temporary hack to switch btw old and new writer architecture
                 if (writer instanceof AbstractDataWriter)
                     writer = new FilteredWriter((AbstractDataWriter)writer, request.getObservables());

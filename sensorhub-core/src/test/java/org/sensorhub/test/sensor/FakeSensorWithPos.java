@@ -17,15 +17,14 @@ package org.sensorhub.test.sensor;
 import net.opengis.sensorml.v20.PhysicalSystem;
 import net.opengis.sensorml.v20.SpatialFrame;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorDataInterface;
+import org.sensorhub.api.sensor.SensorConfig;
 import org.sensorhub.api.sensor.SensorException;
-import org.sensorhub.impl.sensor.AbstractSensorModule;
 import org.vast.sensorML.SMLFactory;
 
 
-public class FakeSensorWithPos extends AbstractSensorModule<SensorConfigWithPos>
+public class FakeSensorWithPos extends FakeSensor
 {
        
     
@@ -57,7 +56,7 @@ public class FakeSensorWithPos extends AbstractSensorModule<SensorConfigWithPos>
     
 
     @Override
-    public void updateConfig(SensorConfigWithPos config) throws SensorHubException
+    public void updateConfig(SensorConfig config) throws SensorHubException
     {
     }
 
@@ -78,40 +77,5 @@ public class FakeSensorWithPos extends AbstractSensorModule<SensorConfigWithPos>
             localRefFrame.addAxis("Z", "The Z axis");
             ((PhysicalSystem)sensorDescription).addLocalReferenceFrame(localRefFrame);
         }
-    }
-
-
-    @Override
-    public void start() throws SensorHubException
-    {
-        for (ISensorDataInterface o: getObservationOutputs().values())
-            ((IFakeSensorOutput)o).start();
-    }
-    
-    
-    @Override
-    public void stop() throws SensorHubException
-    {
-        for (ISensorDataInterface o: getObservationOutputs().values())
-            ((IFakeSensorOutput)o).stop();
-    }
-
-
-    @Override
-    public boolean isConnected()
-    {
-        return true;
-    }
-    
-    
-    @Override
-    public void cleanup() throws SensorHubException
-    {
-    }
-    
-    
-    public void setStartedState()
-    {
-        setState(ModuleState.STARTED);
     }
 }

@@ -33,6 +33,7 @@ public class FakeSensor extends AbstractSensorModule<SensorConfig>
     public FakeSensor()
     {
         this.uniqueID = "urn:sensors:mysensor:001";
+        this.xmlID = "SENSOR1";
     }
     
     
