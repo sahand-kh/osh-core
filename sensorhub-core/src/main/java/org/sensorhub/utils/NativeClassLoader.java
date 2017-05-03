@@ -238,8 +238,6 @@ public class NativeClassLoader extends URLClassLoader
             }
             catch (ClassNotFoundException e)
             {
-                if (log.isTraceEnabled())
-                    log.trace("Cannot find class in parent classloader", e);
                 c = findClass(name);
             }
         }
