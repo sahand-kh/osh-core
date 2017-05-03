@@ -210,6 +210,7 @@ public class TestModuleRegistry
         long t0 = System.currentTimeMillis();
         registry.initModuleAsync(conf.id, false, new IEventListener()
         {
+            @Override
             public void handleEvent(Event<?> e)
             {
                 if (((ModuleEvent)e).getNewState() == ModuleState.INITIALIZED)
@@ -266,6 +267,7 @@ public class TestModuleRegistry
         long t0 = System.currentTimeMillis();
         registry.startModuleAsync(conf.id, new IEventListener()
         {
+            @Override
             public void handleEvent(Event<?> e)
             {
                 if (((ModuleEvent)e).getNewState() == ModuleState.INITIALIZED)
@@ -326,6 +328,7 @@ public class TestModuleRegistry
         long t0 = System.currentTimeMillis();
         registry.startModuleAsync(conf2.id, new IEventListener()
         {
+            @Override
             public void handleEvent(Event<?> e)
             {
                 if (((ModuleEvent)e).getNewState() == ModuleState.INITIALIZED)
@@ -388,6 +391,7 @@ public class TestModuleRegistry
         long t0 = System.currentTimeMillis();
         registry.stopModuleAsync(conf.id, new IEventListener()
         {
+            @Override
             public void handleEvent(Event<?> e)
             {
                 if (((ModuleEvent)e).getNewState() == ModuleState.STOPPED)

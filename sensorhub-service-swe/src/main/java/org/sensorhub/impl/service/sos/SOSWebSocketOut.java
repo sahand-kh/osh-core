@@ -106,7 +106,7 @@ public class SOSWebSocketOut implements WebSocketListener, Runnable
             // if connection was closed by client during processing, we end on
             // an EOFException when writing next record to respOutputStream.
             // this is a normal state so we have nothing special to do
-            log.debug("Data provider exited on client abort");
+            log.debug("Data provider exited on client abort", e);
         }
         catch (Exception e)
         {

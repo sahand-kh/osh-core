@@ -65,6 +65,7 @@ import org.sensorhub.impl.service.sos.SOSServiceConfig;
 import org.sensorhub.impl.service.sos.SensorDataProviderConfig;
 import org.sensorhub.test.sensor.FakeSensor;
 import org.sensorhub.test.sensor.FakeSensorData;
+import org.sensorhub.test.service.WaitForCondition;
 import org.vast.data.DataBlockDouble;
 import org.vast.data.QuantityImpl;
 import org.vast.data.TextEncodingImpl;
@@ -553,7 +554,7 @@ public class TestSOSService
         SensorDataProviderConfig provider2 = buildSensorProvider2(true);
         provider1.liveDataTimeout = 0.5;
         provider2.liveDataTimeout = 1.0;
-        deployService(provider2, provider1);
+        final SOSService sos = deployService(provider2, provider1);
         
         // wait for timeout
         Thread.sleep(((long)(provider2.liveDataTimeout*1000)));
@@ -565,6 +566,9 @@ public class TestSOSService
         
         // start sensor1
         SensorHub.getInstance().getModuleRegistry().startModule(provider1.sensorID);
+        new WaitForCondition(5000L) {
+            public boolean check() { return sos.getCapabilities().getLayers().size() == 2; }
+        };
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
         dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");

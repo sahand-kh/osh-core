@@ -29,9 +29,9 @@ import com.vaadin.server.ExternalResource;
 import com.vaadin.ui.Link;
 
 
+@SuppressWarnings("serial")
 public class SPSConfigForm extends GenericConfigForm
 {
-    private static final long serialVersionUID = -5570947777524310604L;
     protected static final String SPS_PACKAGE = "org.sensorhub.impl.service.sps.";
     protected static final String PROP_CONNECTORS = "connectors";
     protected static final String PROP_ENDPOINT = "endPoint";
@@ -79,6 +79,7 @@ public class SPSConfigForm extends GenericConfigForm
                         }
                         catch (SensorHubException e)
                         {
+                            AdminUIModule.getInstance().getLogger().error("Cannot add SPS link", e);
                         }
                     }
                 }
@@ -99,7 +100,7 @@ public class SPSConfigForm extends GenericConfigForm
             }
             catch (ClassNotFoundException e)
             {
-                e.printStackTrace();
+                AdminUIModule.getInstance().getLogger().error("Cannot find SPS connector class", e);
             }
             return classList;
         }

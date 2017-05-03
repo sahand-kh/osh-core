@@ -348,6 +348,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
         
         // prepare filter
         IDataFilter filter = new DataFilter(recordDef.getName()) {
+            @Override
             public double[] getTimeStampRange() { return new double[] {0, numRecords*timeStep}; }
         };
     
@@ -415,6 +416,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
         {
             final int count = i;
             exec.submit(new Runnable() {
+                @Override
                 public void run()
                 {
                     long startTimeOffset = System.currentTimeMillis() - refTime;
@@ -454,6 +456,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
         for (int i=0; i<numReadThreads; i++)
         {
             exec.submit(new Runnable() {
+                @Override
                 public void run()
                 {
                     long tid = Thread.currentThread().getId();
@@ -477,6 +480,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
                             
                             // prepare filter
                             IDataFilter filter = new DataFilter(recordDef.getName()) {
+                                @Override
                                 public double[] getTimeStampRange() { return new double[] {begin, end}; }
                             };
                         
@@ -524,6 +528,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
         {
             final int startCount = i*1000000;
             exec.submit(new Runnable() {
+                @Override
                 public void run()
                 {
                     long startTimeOffset = System.currentTimeMillis() - refTime;
@@ -604,6 +609,7 @@ public abstract class AbstractTestBasicStorage<StorageType extends IRecordStorag
         {
             exec.submit(new Runnable()
             {
+                @Override
                 public void run()
                 {
                     long tid = Thread.currentThread().getId();

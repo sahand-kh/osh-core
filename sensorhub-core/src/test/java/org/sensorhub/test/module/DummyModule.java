@@ -32,23 +32,27 @@ public class DummyModule implements IModule<ModuleConfig>
     IEventHandler eventHandler;
 
 
+    @Override
     public boolean isInitialized()
     {
         return true;
     }
 
 
+    @Override
     public boolean isStarted()
     {
         return (state == ModuleState.STARTED);
     }
 
 
+    @Override
     public void init()
     {
     }
     
     
+    @Override
     public void init(ModuleConfig config)
     {
         this.config = config;
@@ -56,11 +60,13 @@ public class DummyModule implements IModule<ModuleConfig>
     }
 
 
+    @Override
     public void updateConfig(ModuleConfig config)
     {
     }
 
 
+    @Override
     public void setConfiguration(ModuleConfig config)
     {
         this.config = config;
@@ -68,79 +74,93 @@ public class DummyModule implements IModule<ModuleConfig>
     }
 
 
+    @Override
     public ModuleConfig getConfiguration()
     {
         return config;
     }
 
 
+    @Override
     public String getName()
     {
         return config.name;
     }
 
 
+    @Override
     public String getLocalID()
     {
         return config.id;
     }
 
 
+    @Override
     public void start()
     {
     }
 
 
+    @Override
     public void stop()
     {
     }
 
 
+    @Override
     public void saveState(IModuleStateManager saver)
     {
     }
 
 
+    @Override
     public void loadState(IModuleStateManager loader)
     {
     }
 
 
+    @Override
     public void cleanup()
     {
     }
 
 
+    @Override
     public void registerListener(IEventListener listener)
     {
         eventHandler.registerListener(listener);
     }
 
 
+    @Override
     public void unregisterListener(IEventListener listener)
     {
         eventHandler.registerListener(listener);
     }
 
 
+    @Override
     public ModuleState getCurrentState()
     {
         return this.state;
     }
 
 
+    @Override
     public String getStatusMessage()
     {
         return null;
     }
 
 
+    @Override
     public Throwable getCurrentError()
     {
         return null;
     }
 
 
+    @Override
     public void requestInit(boolean force) throws SensorHubException
     {
         init();
@@ -148,6 +168,7 @@ public class DummyModule implements IModule<ModuleConfig>
     }
 
 
+    @Override
     public void requestStart() throws SensorHubException
     {
         start();
@@ -155,6 +176,7 @@ public class DummyModule implements IModule<ModuleConfig>
     }
 
 
+    @Override
     public void requestStop() throws SensorHubException
     {
         stop();

@@ -92,6 +92,8 @@ import org.vast.cdm.common.DataStreamParser;
 import org.vast.cdm.common.DataStreamWriter;
 import org.vast.data.JSONEncodingImpl;
 import org.vast.data.XMLEncodingImpl;
+import org.vast.json.JsonStreamException;
+import org.vast.json.JsonStreamWriter;
 import org.vast.ogc.OGCRegistry;
 import org.vast.ogc.def.DefinitionRef;
 import org.vast.ogc.gml.GMLStaxBindings;
@@ -101,28 +103,9 @@ import org.vast.ogc.om.OMUtils;
 import org.vast.ogc.om.SamplingPoint;
 import org.vast.ows.GetCapabilitiesRequest;
 import org.vast.ows.OWSExceptionReport;
-import org.vast.ows.OWSLayerCapabilities;
 import org.vast.ows.OWSRequest;
 import org.vast.ows.OWSUtils;
-import org.vast.ows.sos.GetFeatureOfInterestRequest;
-import org.vast.ows.sos.GetResultRequest;
-import org.vast.ows.sos.DataStructFilter;
-import org.vast.ows.sos.GetObservationRequest;
-import org.vast.ows.sos.GetResultTemplateRequest;
-import org.vast.ows.sos.GetResultTemplateResponse;
-import org.vast.ows.sos.InsertObservationRequest;
-import org.vast.ows.sos.InsertObservationResponse;
-import org.vast.ows.sos.InsertResultRequest;
-import org.vast.ows.sos.InsertResultResponse;
-import org.vast.ows.sos.InsertResultTemplateRequest;
-import org.vast.ows.sos.InsertResultTemplateResponse;
-import org.vast.ows.sos.InsertSensorRequest;
-import org.vast.ows.sos.InsertSensorResponse;
-import org.vast.ows.sos.SOSException;
-import org.vast.ows.sos.SOSInsertionCapabilities;
-import org.vast.ows.sos.SOSOfferingCapabilities;
-import org.vast.ows.sos.SOSServiceCapabilities;
-import org.vast.ows.sos.SOSUtils;
+import org.vast.ows.sos.*;
 import org.vast.ows.swe.DeleteSensorRequest;
 import org.vast.ows.swe.DeleteSensorResponse;
 import org.vast.ows.swe.DescribeSensorRequest;
@@ -165,34 +148,25 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     private static final QName EXT_REPLAY = new QName("replayspeed"); // kvp params are always lower case
     private static final QName EXT_WS = new QName("websocket");
     
-    SOSServiceConfig config;
-    SOSSecurity securityHandler;
-    Logger log;
-    String endpointUrl;
-    WebSocketServletFactory factory = new WebSocketServerFactory();
-    ReentrantReadWriteLock capabilitiesLock = new ReentrantReadWriteLock();
-    SOSServiceCapabilities capabilities;
-    Map<String, SOSOfferingCapabilities> offeringCaps = new HashMap<String, SOSOfferingCapabilities>();
-    Map<String, String> procedureToOfferingMap = new HashMap<String, String>();
-    Map<String, String> templateToOfferingMap = new HashMap<String, String>();    
-    Map<String, ISOSDataProviderFactory> dataProviders = new LinkedHashMap<String, ISOSDataProviderFactory>();
-    Map<String, ISOSDataConsumer> dataConsumers = new LinkedHashMap<String, ISOSDataConsumer>();
-    Map<String, ISOSCustomSerializer> customFormats = new HashMap<String, ISOSCustomSerializer>();
-    boolean needCapabilitiesTimeUpdate = false;
+    final transient SOSServiceConfig config;
+    final transient SOSSecurity securityHandler;
+    final transient Logger log;
+    final transient WebSocketServletFactory wsFactory = new WebSocketServerFactory();
+    final transient ReentrantReadWriteLock capabilitiesLock = new ReentrantReadWriteLock();
+    final transient SOSServiceCapabilities capabilities = new SOSServiceCapabilities();
+    final transient Map<String, SOSOfferingCapabilities> offeringCaps = new HashMap<>();
+    final transient Map<String, String> procedureToOfferingMap = new HashMap<>();
+    final transient Map<String, String> templateToOfferingMap = new HashMap<>();    
+    final transient Map<String, ISOSDataProviderFactory> dataProviders = new LinkedHashMap<>();
+    final transient Map<String, ISOSDataConsumer> dataConsumers = new LinkedHashMap<>();
+    final transient Map<String, ISOSCustomSerializer> customFormats = new HashMap<>();
     
     
-    protected SOSServlet(SOSServiceConfig config, SOSSecurity securityHandler, Logger log)
+    protected SOSServlet(SOSServiceConfig config, SOSSecurity securityHandler, Logger log) throws SensorHubException
     {
         this.config = config;
         this.securityHandler = securityHandler;
         this.log = log;
-    }
-    
-    
-    protected void start() throws SensorHubException
-    {
-        // pre-generate capabilities
-        endpointUrl = null;
         generateCapabilities();
     }
     
@@ -226,8 +200,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         templateToOfferingMap.clear();
         dataProviders.clear();
         dataConsumers.clear();
-        customFormats.clear();
-        capabilities = new SOSServiceCapabilities();
+        customFormats.clear();        
         
         // get main capabilities info from config
         CapabilitiesInfo serviceInfo = config.ogcCapabilitiesInfo;
@@ -369,17 +342,24 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected SOSOfferingCapabilities generateCapabilities(ISOSDataProviderFactory provider) throws Exception
+    protected SOSOfferingCapabilities generateCapabilities(ISOSDataProviderFactory provider) throws IOException
     {
-        SOSOfferingCapabilities caps = provider.generateCapabilities();
-        
-        // add supported formats
-        caps.getResponseFormats().add(SWESOfferingCapabilities.FORMAT_OM2);
-        caps.getResponseFormats().add(SWESOfferingCapabilities.FORMAT_OM2_JSON);
-        caps.getProcedureFormats().add(SWESOfferingCapabilities.FORMAT_SML2);
-        caps.getProcedureFormats().add(SWESOfferingCapabilities.FORMAT_SML2_JSON);
-        
-        return caps;
+        try
+        {
+            SOSOfferingCapabilities caps = provider.generateCapabilities();
+            
+            // add supported formats
+            caps.getResponseFormats().add(SWESOfferingCapabilities.FORMAT_OM2);
+            caps.getResponseFormats().add(SWESOfferingCapabilities.FORMAT_OM2_JSON);
+            caps.getProcedureFormats().add(SWESOfferingCapabilities.FORMAT_SML2);
+            caps.getProcedureFormats().add(SWESOfferingCapabilities.FORMAT_SML2_JSON);
+            
+            return caps;
+        }
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot generate capabilities", e);
+        }
     }
     
     
@@ -420,7 +400,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         }
         catch (Exception e)
         {
-            log.error("Error while generating offering " + config.offeringID, e);
+            log.error("Cannot generate offering " + config.offeringID, e);
         }
         finally
         {
@@ -537,7 +517,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         }
         catch (SensorHubException e)
         {
-            log.error("Error while updating offering " + offeringID);
+            log.error("Error while updating offering " + offeringID, e);
         }
     }
     
@@ -579,7 +559,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         }
         catch (SensorHubException e)
         {
-            log.error("Error while updating offering " + offeringID);
+            log.error("Error while updating offering " + offeringID, e);
         }
     }
     
@@ -607,35 +587,43 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     /*
      * Create and associate storage with the given sensor module and corresponding offering
      */
-    protected IModule<?> addStorageForSensor(ISensorModule<?> sensorModule) throws SensorHubException
+    protected IModule<?> addStorageForSensor(ISensorModule<?> sensorModule) throws IOException
     {
         ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
         String sensorUID = sensorModule.getUniqueIdentifier();
-        String storageID = sensorUID + "#storage";
-        
-        // create new storage module if needed
-        IModule<?> storageModule = moduleReg.getLoadedModuleById(storageID);
-        if (storageModule == null)
+            
+        try
         {
-            // create new storage module
-            StreamStorageConfig streamStorageConfig = new StreamStorageConfig();
-            streamStorageConfig.id = storageID;
-            streamStorageConfig.name = sensorModule.getName() + " Storage";
-            streamStorageConfig.autoStart = true;
-            streamStorageConfig.dataSourceID = sensorUID;
-            streamStorageConfig.storageConfig = (StorageConfig)config.newStorageConfig.clone();
-            streamStorageConfig.storageConfig.setStorageIdentifier(sensorUID);
-            storageModule = moduleReg.loadModule(streamStorageConfig);
-                                
-            /*// also add related features to storage
-            if (storage instanceof IObsStorage)
+            String storageID = sensorUID + "#storage";
+            
+            // create new storage module if needed
+            IModule<?> storageModule = moduleReg.getLoadedModuleById(storageID);
+            if (storageModule == null)
             {
-                for (FeatureRef featureRef: request.getRelatedFeatures())
-                    ((IObsStorage) storage).storeFoi(featureRef.getTarget());
-            }*/
+                // create new storage module
+                StreamStorageConfig streamStorageConfig = new StreamStorageConfig();
+                streamStorageConfig.id = storageID;
+                streamStorageConfig.name = sensorModule.getName() + " Storage";
+                streamStorageConfig.autoStart = true;
+                streamStorageConfig.dataSourceID = sensorUID;
+                streamStorageConfig.storageConfig = (StorageConfig)config.newStorageConfig.clone();
+                streamStorageConfig.storageConfig.setStorageIdentifier(sensorUID);
+                storageModule = moduleReg.loadModule(streamStorageConfig);
+                                    
+                /*// also add related features to storage
+                if (storage instanceof IObsStorage)
+                {
+                    for (FeatureRef featureRef: request.getRelatedFeatures())
+                        ((IObsStorage) storage).storeFoi(featureRef.getTarget());
+                }*/
+            }
+            
+            return storageModule;
         }
-        
-        return storageModule;        
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot create storage for sensor " + sensorUID, e);
+        }        
     }
     
     
@@ -650,7 +638,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         try
         {
             // check if we have an upgrade request for websockets
-            if (factory.isUpgradeRequest(req, resp))
+            if (wsFactory.isUpgradeRequest(req, resp))
             {
                 // parse request
                 try
@@ -670,7 +658,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                             this.handleRequest(owsReq);
                         }
                         else
-                            throw new RuntimeException(INVALID_WS_REQ_MSG + owsReq.getOperation() + " is not supported via this protocol");
+                            throw new ServletException(INVALID_WS_REQ_MSG + owsReq.getOperation() + " is not supported via this protocol");
                     }
                 }
                 catch (Exception e)
@@ -696,7 +684,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     
     protected void acceptWebSocket(final OWSRequest owsReq, final WebSocketListener socket) throws IOException
     {
-        factory.acceptWebSocket(new WebSocketCreator() {
+        wsFactory.acceptWebSocket(new WebSocketCreator() {
             @Override
             public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp)
             {
@@ -707,7 +695,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
 
 
     @Override
-    protected void handleRequest(GetCapabilitiesRequest request) throws Exception
+    protected void handleRequest(GetCapabilitiesRequest request) throws IOException
     {
         // check that version 2.0.0 is supported by client
         if (!request.getAcceptedVersions().isEmpty())
@@ -729,14 +717,11 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             capabilitiesLock.writeLock().lock();
             
             // update operation URLs
-            if (endpointUrl == null)
-            {
-                endpointUrl = request.getHttpRequest().getRequestURL().toString();
-                for (Entry<String, String> op: capabilities.getGetServers().entrySet())
-                    capabilities.getGetServers().put(op.getKey(), endpointUrl);
-                for (Entry<String, String> op: capabilities.getPostServers().entrySet())
-                    capabilities.getPostServers().put(op.getKey(), endpointUrl);
-            }
+            String endpointUrl = request.getHttpRequest().getRequestURL().toString();
+            for (Entry<String, String> op: capabilities.getGetServers().entrySet())
+                capabilities.getGetServers().put(op.getKey(), endpointUrl);
+            for (Entry<String, String> op: capabilities.getPostServers().entrySet())
+                capabilities.getPostServers().put(op.getKey(), endpointUrl);
             
             // ask providers to refresh their capabilities if needed.
             // we do that here so capabilities doc contains the most up-to-date info.
@@ -744,8 +729,15 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             // would trigger too many updates (e.g. new measurements changing time periods)
             for (ISOSDataProviderFactory provider: dataProviders.values())
             {
-                if (provider.isEnabled())
-                    ((ISOSDataProviderFactory)provider).updateCapabilities();
+                try
+                {
+                    if (provider.isEnabled())
+                        provider.updateCapabilities();
+                }
+                catch (SensorHubException e)
+                {
+                    log.error("Cannot update capabilities of provider " + provider.getConfig().name, e);
+                }
             }
         }
         finally
@@ -766,12 +758,12 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         
     
     @Override
-    protected void handleRequest(DescribeSensorRequest request) throws Exception
-    {
+    protected void handleRequest(DescribeSensorRequest request) throws IOException
+    {        
         String sensorID = request.getProcedureID();
                 
         // check query parameters
-        OWSExceptionReport report = new OWSExceptionReport();        
+        OWSExceptionReport report = new OWSExceptionReport();
         checkQueryProcedure(sensorID, report);
         String offeringID = procedureToOfferingMap.get(sensorID);
         checkQueryProcedureFormat(offeringID, request.getFormat(), report);
@@ -780,120 +772,108 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         // security check
         securityHandler.checkPermission(offeringID, securityHandler.sos_read_sensor);
         
-        // get procedure description
-        AbstractProcess processDesc = generateSensorML(sensorID, request.getTime());
-        if (processDesc == null)
-            throw new SOSException(SOSException.invalid_param_code, "validTime"); 
-        
-        // init XML or JSON writer
-        String format = request.getFormat();
-        OutputStream os = new BufferedOutputStream(request.getResponseStream());
-        
-        XMLStreamWriter xmlWriter;
-        boolean isJson = false;
-        if (SWESOfferingCapabilities.FORMAT_SML2.equals(format))
+        try
         {
-            XMLOutputFactory factory = XMLImplFinder.getStaxOutputFactory();
-            xmlWriter = factory.createXMLStreamWriter(os, StandardCharsets.UTF_8.name());
-            xmlWriter = new IndentingXMLStreamWriter(xmlWriter);
-        }
-        else if (SWESOfferingCapabilities.FORMAT_SML2_JSON.equals(format))
-        {
-            xmlWriter = new SMLJsonStreamWriter(os, StandardCharsets.UTF_8.name());
-            request.getHttpResponse().setContentType(OWSUtils.JSON_MIME_TYPE);
-            isJson = true;
-        }
-        else
-        {
-            throw new SOSException(SOSException.invalid_param_code, "procedureDescriptionFormat", format, "Procedure description format " + format + " is not supported");
-        }
-        
-        // prepare SensorML writing
-        SMLStaxBindings smlBindings = new SMLStaxBindings();
-        smlBindings.setNamespacePrefixes(xmlWriter);
-        smlBindings.declareNamespacesOnRootElement();
-        
-        // start XML response
-        xmlWriter.writeStartDocument();
-        
-        // wrap SensorML description inside response
-        if (!isJson)
-        {
-            // wrap with SOAP envelope if requested
-            startSoapEnvelope(request, xmlWriter);
+            // get procedure description
+            AbstractProcess processDesc = generateSensorML(sensorID, request.getTime());
+            if (processDesc == null)
+                throw new SOSException(SOSException.invalid_param_code, "validTime"); 
             
-            String swesNsUri = OGCRegistry.getNamespaceURI(SOSUtils.SWES, DEFAULT_VERSION);
-            xmlWriter.writeStartElement(SWES_PREFIX, "DescribeSensorResponse", swesNsUri);
-            xmlWriter.writeNamespace(SWES_PREFIX, swesNsUri);
+            // init XML or JSON writer
+            String format = request.getFormat();        
+            XMLStreamWriter writer = getResponseStreamWriter(request, format);
+            boolean isJson = writer instanceof JsonStreamWriter;
+            if (writer == null)
+                throw new SOSException(SOSException.invalid_param_code, "procedureDescriptionFormat", format, "Procedure description format " + format + " is not supported");
+                    
+            // prepare SensorML writing
+            SMLStaxBindings smlBindings = new SMLStaxBindings();
+            smlBindings.setNamespacePrefixes(writer);
+            smlBindings.declareNamespacesOnRootElement();
             
-            xmlWriter.writeStartElement(SWES_PREFIX, "procedureDescriptionFormat", swesNsUri);
-            xmlWriter.writeCharacters(format);
-            xmlWriter.writeEndElement();
+            // start XML response
+            writer.writeStartDocument();
             
-            xmlWriter.writeStartElement(SWES_PREFIX, "description", swesNsUri);
-            xmlWriter.writeStartElement(SWES_PREFIX, "SensorDescription", swesNsUri);
-            xmlWriter.writeStartElement(SWES_PREFIX, "data", swesNsUri);
-        }
-        
-        smlBindings.writeAbstractProcess(xmlWriter, processDesc);
-        
-        if (!isJson)
-        {
-            xmlWriter.writeEndElement();
-            xmlWriter.writeEndElement();
-            xmlWriter.writeEndElement();        
-            xmlWriter.writeEndElement();
+            // wrap SensorML description inside response
+            if (!isJson)
+            {
+                // wrap with SOAP envelope if requested
+                startSoapEnvelope(request, writer);
+                
+                String swesNsUri = OGCRegistry.getNamespaceURI(SOSUtils.SWES, DEFAULT_VERSION);
+                writer.writeStartElement(SWES_PREFIX, "DescribeSensorResponse", swesNsUri);
+                writer.writeNamespace(SWES_PREFIX, swesNsUri);
+                
+                writer.writeStartElement(SWES_PREFIX, "procedureDescriptionFormat", swesNsUri);
+                writer.writeCharacters(format);
+                writer.writeEndElement();
+                
+                writer.writeStartElement(SWES_PREFIX, "description", swesNsUri);
+                writer.writeStartElement(SWES_PREFIX, "SensorDescription", swesNsUri);
+                writer.writeStartElement(SWES_PREFIX, "data", swesNsUri);
+            }
+            
+            smlBindings.writeAbstractProcess(writer, processDesc);
             
             // close SOAP elements
-            endSoapEnvelope(request, xmlWriter);
+            if (!isJson)
+                endSoapEnvelope(request, writer);
+            
+            writer.writeEndDocument();
+            writer.close();
         }
-        
-        xmlWriter.writeEndDocument();
-        xmlWriter.close();
+        catch (ServiceException e)
+        {
+            throw new IOException("Cannot generate SensorML document", e);
+        }
+        catch (XMLStreamException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
+        }
     }
     
     
     @Override
-    protected void handleRequest(GetObservationRequest request) throws Exception
+    protected void handleRequest(GetObservationRequest request) throws IOException
     {
         ISOSDataProvider dataProvider = null;
         
+        // set default format
+        if (request.getFormat() == null)
+            request.setFormat(GetObservationRequest.DEFAULT_FORMAT);
+        
+        // build offering set (also from procedures ID)
+        Set<String> selectedOfferings = new HashSet<>();
+        for (String procID: request.getProcedures())
+        {
+            String offering = procedureToOfferingMap.get(procID);
+            if (offering != null)
+                selectedOfferings.add(offering);                
+        }
+        if (selectedOfferings.isEmpty())
+            selectedOfferings.addAll(request.getOfferings());
+        else if (!request.getOfferings().isEmpty())
+            selectedOfferings.retainAll(request.getOfferings());
+        
+        // if no offering or procedure specified scan all offerings
+        if (selectedOfferings.isEmpty())
+            selectedOfferings.addAll(offeringCaps.keySet());
+        
+        // check query parameters
+        OWSExceptionReport report = new OWSExceptionReport();
+        checkQueryOfferings(request.getOfferings(), report);
+        checkQueryObservables(request.getObservables(), report);
+        checkQueryProcedures(request.getProcedures(), report);
+        for (String offering: selectedOfferings)
+            checkQueryFormat(offering, request.getFormat(), report);
+        report.process();
+        
+        // security check
+        for (String offeringID: selectedOfferings)
+            securityHandler.checkPermission(offeringID, securityHandler.sos_read_obs);
+            
         try
         {
-            // set default format
-            if (request.getFormat() == null)
-                request.setFormat(GetObservationRequest.DEFAULT_FORMAT);
-            
-            // build offering set (also from procedures ID)
-            Set<String> selectedOfferings = new HashSet<String>();
-            for (String procID: request.getProcedures())
-            {
-                String offering = procedureToOfferingMap.get(procID);
-                if (offering != null)
-                    selectedOfferings.add(offering);                
-            }
-            if (selectedOfferings.isEmpty())
-                selectedOfferings.addAll(request.getOfferings());
-            else if (!request.getOfferings().isEmpty())
-                selectedOfferings.retainAll(request.getOfferings());
-            
-            // if no offering or procedure specified scan all offerings
-            if (selectedOfferings.isEmpty())
-                selectedOfferings.addAll(offeringCaps.keySet());
-            
-            // check query parameters
-            OWSExceptionReport report = new OWSExceptionReport();
-            checkQueryOfferings(request.getOfferings(), report);
-            checkQueryObservables(request.getObservables(), report);
-            checkQueryProcedures(request.getProcedures(), report);
-            for (String offering: selectedOfferings)
-                checkQueryFormat(offering, request.getFormat(), report);
-            report.process();
-            
-            // security check
-            for (String offeringID: selectedOfferings)
-                securityHandler.checkPermission(offeringID, securityHandler.sos_read_obs);
-            
             // prepare obs stream writer for requested O&M version
             String format = request.getFormat();
             String omVersion = format.substring(format.lastIndexOf('/') + 1);
@@ -901,34 +881,23 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             String sosNsUri = OGCRegistry.getNamespaceURI(SOSUtils.SOS, DEFAULT_VERSION);
             
             // init XML or JSON writer
-            OutputStream os = new BufferedOutputStream(request.getResponseStream());
-            XMLStreamWriter xmlWriter;
-            if (SWESOfferingCapabilities.FORMAT_OM2.equals(format))
-            {
-                XMLOutputFactory factory = XMLImplFinder.getStaxOutputFactory();
-                xmlWriter = factory.createXMLStreamWriter(os, StandardCharsets.UTF_8.name());
-                xmlWriter = new IndentingXMLStreamWriter(xmlWriter);
-            }
-            else if (SWESOfferingCapabilities.FORMAT_OM2_JSON.equals(format))
-            {
-                xmlWriter = new SWEJsonStreamWriter(os, StandardCharsets.UTF_8.name());
-                request.getHttpResponse().setContentType(OWSUtils.JSON_MIME_TYPE);
-                request.setSoapVersion(null);
-            }
-            else
-            {
+            XMLStreamWriter writer = getResponseStreamWriter(request, format);
+            boolean isJson = writer instanceof JsonStreamWriter;
+            if (writer == null)
                 throw new SOSException(SOSException.invalid_param_code, "responseFormat", format, "Response format " + format + " is not supported");
-            }
             
             // start XML response
-            xmlWriter.writeStartDocument();
+            writer.writeStartDocument();
             
-            // wrap with SOAP envelope if needed
-            startSoapEnvelope(request, xmlWriter);
-            
-            // wrap all observations inside response
-            xmlWriter.writeStartElement(SOS_PREFIX, "GetObservationResponse", sosNsUri);
-            xmlWriter.writeNamespace(SOS_PREFIX, sosNsUri);
+            if (!isJson)
+            {
+                // wrap with SOAP envelope if needed
+                startSoapEnvelope(request, writer);
+                
+                // wrap all observations inside response
+                writer.writeStartElement(SOS_PREFIX, "GetObservationResponse", sosNsUri);
+                writer.writeNamespace(SOS_PREFIX, sosNsUri);
+            }
             
             // send obs from each selected offering
             // TODO sort by time by multiplexing obs from different offerings?
@@ -943,7 +912,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                 if (selectedObservables.isEmpty())
                 {
                    SOSOfferingCapabilities caps = offeringCaps.get(offering);
-                   selectedObservables = new ArrayList<String>();
+                   selectedObservables = new ArrayList<>();
                    selectedObservables.addAll(caps.getObservableProperties());
                    sendAllObservables = true;
                 }
@@ -979,11 +948,8 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                         
                         // remove redundant obs in wildcard case
                         DataComponent result = obs.getResult();
-                        if (sendAllObservables)
-                        {
-                            if (result instanceof DataRecord || result instanceof DataChoice)
-                                continue;
-                        }
+                        if (sendAllObservables && (result instanceof DataRecord || result instanceof DataChoice))
+                            continue;
                         
                         // set correct obs type depending on final result structure                        
                         if (result instanceof SimpleComponent)
@@ -1001,25 +967,30 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                         if (firstObs)
                         {
                             for (Entry<String, String> nsDef: dom.getXmlDocument().getNSTable().entrySet())
-                                xmlWriter.writeNamespace(nsDef.getKey(), nsDef.getValue());        
+                                writer.writeNamespace(nsDef.getKey(), nsDef.getValue());        
                             firstObs = false;
                         }
                         
                         // serialize observation DOM tree into stream writer
-                        xmlWriter.writeStartElement(SOS_PREFIX, "observationData", sosNsUri);
-                        dom.writeToStreamWriter(obsElt, xmlWriter);
-                        xmlWriter.writeEndElement();
-                        xmlWriter.flush();
+                        writer.writeStartElement(SOS_PREFIX, "observationData", sosNsUri);
+                        dom.writeToStreamWriter(obsElt, writer);
+                        writer.writeEndElement();
+                        writer.flush();
                     }
                 }
             }
             
             // close SOAP elements
-            endSoapEnvelope(request, xmlWriter);
+            if (!isJson)
+                endSoapEnvelope(request, writer);
             
             // this will automatically close all open elements
-            xmlWriter.writeEndDocument();
-            xmlWriter.close();
+            writer.writeEndDocument();
+            writer.close();
+        }
+        catch (XMLStreamException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
         }
         finally
         {
@@ -1029,24 +1000,23 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected void handleRequest(GetResultTemplateRequest request) throws Exception
+    @Override
+    protected void handleRequest(GetResultTemplateRequest request) throws IOException
     {
-        ISOSDataProvider dataProvider = null;
+        // check query parameters        
+        OWSExceptionReport report = new OWSExceptionReport();
+        checkQueryObservables(request.getOffering(), request.getObservables(), report);
+        report.process();
+        
+        // security check
+        securityHandler.checkPermission(request.getOffering(), securityHandler.sos_read_obs);
+        
+        // setup data provider
+        SOSDataFilter filter = new SOSDataFilter(request.getObservables().get(0));
+        ISOSDataProvider dataProvider = getDataProvider(request.getOffering(), filter);
         
         try
         {
-            // check query parameters        
-            OWSExceptionReport report = new OWSExceptionReport();
-            checkQueryObservables(request.getOffering(), request.getObservables(), report);
-            report.process();
-            
-            // security check
-            securityHandler.checkPermission(request.getOffering(), securityHandler.sos_read_obs);
-            
-            // setup data provider
-            SOSDataFilter filter = new SOSDataFilter(request.getObservables().get(0));
-            dataProvider = getDataProvider(request.getOffering(), filter);
-            
             // build filtered component tree
             // always keep sampling time
             DataComponent filteredStruct = dataProvider.getResultStructure().copy();
@@ -1073,46 +1043,49 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                 sendResponse(request, resp);
             }
         }
+        catch (XMLStreamException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
+        }
         finally
         {
-            if (dataProvider != null)
-                dataProvider.close();
+            dataProvider.close();
         }
     }
     
     
-    protected void handleRequest(GetResultRequest request) throws Exception
+    protected void handleRequest(GetResultRequest request) throws IOException
     {
         ISOSDataProvider dataProvider = null;
         
+        // check query parameters
+        OWSExceptionReport report = new OWSExceptionReport();
+        checkQueryObservables(request.getOffering(), request.getObservables(), report);
+        checkQueryProcedures(request.getOffering(), request.getProcedures(), report);
+        checkQueryTime(request.getOffering(), request.getTime(), report);
+        report.process();
+        
+        // security check
+        securityHandler.checkPermission(request.getOffering(), securityHandler.sos_read_obs);
+        boolean isWs = isWebSocketRequest(request);        
+        
+        // setup data filter (including extensions)
+        SOSDataFilter filter = new SOSDataFilter(request.getFoiIDs(), request.getObservables(), request.getTime());
+        filter.setMaxObsCount(config.maxRecordCount);
+        if (request.getExtensions().containsKey(EXT_REPLAY))
+        {
+            String replaySpeed = (String)request.getExtensions().get(EXT_REPLAY);
+            filter.setReplaySpeedFactor(Double.parseDouble(replaySpeed));
+        }
+        
+        // setup data provider
+        dataProvider = getDataProvider(request.getOffering(), filter);
+        DataComponent resultStructure = dataProvider.getResultStructure();
+        DataEncoding resultEncoding = dataProvider.getDefaultResultEncoding();
+        boolean customFormatUsed = false;
+        
         try
         {
-            // check query parameters
-            OWSExceptionReport report = new OWSExceptionReport();
-            checkQueryObservables(request.getOffering(), request.getObservables(), report);
-            checkQueryProcedures(request.getOffering(), request.getProcedures(), report);
-            checkQueryTime(request.getOffering(), request.getTime(), report);
-            report.process();
-            
-            // security check
-            securityHandler.checkPermission(request.getOffering(), securityHandler.sos_read_obs);
-            boolean isWs = isWebSocketRequest(request);
-            
-            // setup data filter (including extensions)
-            SOSDataFilter filter = new SOSDataFilter(request.getFoiIDs(), request.getObservables(), request.getTime());
-            filter.setMaxObsCount(config.maxRecordCount);
-            if (request.getExtensions().containsKey(EXT_REPLAY))
-            {
-                String replaySpeed = (String)request.getExtensions().get(EXT_REPLAY);
-                filter.setReplaySpeedFactor(Double.parseDouble(replaySpeed));
-            }
-            
-            // setup data provider
-            dataProvider = getDataProvider(request.getOffering(), filter);
-            DataComponent resultStructure = dataProvider.getResultStructure();
-            DataEncoding resultEncoding = dataProvider.getDefaultResultEncoding();
-            boolean customFormatUsed = false;
-            
             // use JSON, XML or custom format if requested
             if (resultEncoding instanceof TextEncoding && OWSUtils.JSON_MIME_TYPE.equals(request.getFormat()))
                 resultEncoding = new JSONEncodingImpl();
@@ -1132,26 +1105,26 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                     request.setXmlWrapper(false);
                 
                 // write small xml wrapper if requested
-                if (((GetResultRequest) request).isXmlWrapper())
+                if (request.isXmlWrapper())
                 {
                     String nsUri = OGCRegistry.getNamespaceURI(SOSUtils.SOS, request.getVersion());
-                    os.write(new String("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n").getBytes());
-                    os.write(new String("<GetResultResponse xmlns=\"" + nsUri + "\">\n<resultValues>\n").getBytes());
+                    os.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n".getBytes());
+                    os.write(("<GetResultResponse xmlns=\"" + nsUri + "\">\n<resultValues>\n").getBytes());
                 }
                 
                 // else change response content type according to encoding
                 else if (request.getHttpResponse() != null)
                 {
                     if (resultEncoding instanceof TextEncoding)
-                        request.getHttpResponse().setContentType(TEXT_MIME_TYPE);
+                        request.getHttpResponse().setContentType(OWSUtils.TEXT_MIME_TYPE);
                     else if (resultEncoding instanceof JSONEncoding)
                         request.getHttpResponse().setContentType(OWSUtils.JSON_MIME_TYPE);
                     else if (resultEncoding instanceof XMLEncoding)
                         request.getHttpResponse().setContentType(OWSUtils.XML_MIME_TYPE);
                     else if (resultEncoding instanceof BinaryEncoding)
-                        request.getHttpResponse().setContentType(BINARY_MIME_TYPE);
+                        request.getHttpResponse().setContentType(OWSUtils.BINARY_MIME_TYPE);
                     else
-                        throw new RuntimeException("Unsupported encoding: " + resultEncoding.getClass().getCanonicalName());
+                        throw new IllegalStateException("Unsupported encoding: " + resultEncoding.getClass().getCanonicalName());
                 }
 
                 // prepare writer for selected encoding
@@ -1179,25 +1152,28 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
                 writer.endStream();
                 
                 // close xml wrapper if needed
-                if (((GetResultRequest) request).isXmlWrapper())
-                    os.write(new String("\n</resultValues>\n</GetResultResponse>").getBytes());          
+                if (request.isXmlWrapper())
+                    os.write("\n</resultValues>\n</GetResultResponse>".getBytes());          
                         
                 os.flush();
             }
         }
+        catch (IOException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
+        }
         finally
         {
-            if (dataProvider != null)
-                dataProvider.close();
+            dataProvider.close();
         }
     }
     
     
     @Override
-    protected void handleRequest(final GetFeatureOfInterestRequest request) throws Exception
+    protected void handleRequest(final GetFeatureOfInterestRequest request) throws IOException
     {
         OWSExceptionReport report = new OWSExceptionReport();
-        Set<String> selectedProcedures = new LinkedHashSet<String>();
+        Set<String> selectedProcedures = new LinkedHashSet<>();
                 
         // get list of procedures to scan
         List<String> procedures = request.getProcedures();
@@ -1278,349 +1254,336 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             public Polygon getRoi() { return poly; }
             public Collection<String> getFeatureIDs() { return request.getFoiIDs(); };
         };
-        
-        // init xml document writing
-        OutputStream os = new BufferedOutputStream(request.getResponseStream());
-        XMLOutputFactory factory = XMLImplFinder.getStaxOutputFactory();
-        factory.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, true);
-        XMLStreamWriter xmlWriter = factory.createXMLStreamWriter(os, StandardCharsets.UTF_8.name());
-        
-        // prepare GML features writing
-        GMLStaxBindings gmlBindings = new GMLStaxBindings();
-        gmlBindings.registerFeatureBindings(new SMLStaxBindings());
-        gmlBindings.declareNamespacesOnRootElement();        
-        
-        // start XML response
-        xmlWriter.writeStartDocument();
-        
-        // wrap with SOAP envelope if requested
-        startSoapEnvelope(request, xmlWriter);
-        
-        // write response root element
-        String sosNsUri = OGCRegistry.getNamespaceURI(SOSUtils.SOS, DEFAULT_VERSION);
-        xmlWriter.writeStartElement(SOS_PREFIX, "GetFeatureOfInterestResponse", sosNsUri);
-        xmlWriter.writeNamespace(SOS_PREFIX, sosNsUri);
-        gmlBindings.writeNamespaces(xmlWriter);        
-        
-        // scan offering corresponding to each selected procedure
-        boolean first = true;
-        HashSet<String> returnedFids = new HashSet<String>();
-        
-        for (String procID: selectedProcedures)
-        {
-            ISOSDataProviderFactory provider = getDataProviderFactoryBySensorID(procID);
             
-            // output selected features
-            Iterator<AbstractFeature> it2 = provider.getFoiIterator(filter);
-            while (it2.hasNext())
+        try
+        {
+            // init xml document writing
+            OutputStream os = new BufferedOutputStream(request.getResponseStream());
+            XMLOutputFactory factory = XMLImplFinder.getStaxOutputFactory();
+            factory.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, true);
+            XMLStreamWriter xmlWriter = factory.createXMLStreamWriter(os, StandardCharsets.UTF_8.name());
+            
+            // prepare GML features writing
+            GMLStaxBindings gmlBindings = new GMLStaxBindings();
+            gmlBindings.registerFeatureBindings(new SMLStaxBindings());
+            gmlBindings.declareNamespacesOnRootElement();        
+            
+            // start XML response
+            xmlWriter.writeStartDocument();
+            
+            // wrap with SOAP envelope if requested
+            startSoapEnvelope(request, xmlWriter);
+            
+            // write response root element
+            String sosNsUri = OGCRegistry.getNamespaceURI(SOSUtils.SOS, DEFAULT_VERSION);
+            xmlWriter.writeStartElement(SOS_PREFIX, "GetFeatureOfInterestResponse", sosNsUri);
+            xmlWriter.writeNamespace(SOS_PREFIX, sosNsUri);
+            gmlBindings.writeNamespaces(xmlWriter);        
+            
+            // scan offering corresponding to each selected procedure
+            boolean first = true;
+            HashSet<String> returnedFids = new HashSet<>();
+            
+            for (String procID: selectedProcedures)
             {
-                AbstractFeature f = it2.next();
+                ISOSDataProviderFactory provider = getDataProviderFactoryBySensorID(procID);
                 
-                // make sure we don't send twice the same feature
-                if (returnedFids.contains(f.getUniqueIdentifier()))
-                    continue;
-                returnedFids.add(f.getUniqueIdentifier());
-                
-                // write namespace on root because in many cases it is common to all features
-                if (first)
+                // output selected features
+                Iterator<AbstractFeature> it2 = provider.getFoiIterator(filter);
+                while (it2.hasNext())
                 {
-                    gmlBindings.ensureNamespaceDecl(xmlWriter, f.getQName());
-                    if (f instanceof GenericFeature)
+                    AbstractFeature f = it2.next();
+                    
+                    // make sure we don't send twice the same feature
+                    if (returnedFids.contains(f.getUniqueIdentifier()))
+                        continue;
+                    returnedFids.add(f.getUniqueIdentifier());
+                    
+                    // write namespace on root because in many cases it is common to all features
+                    if (first)
                     {
-                        for (Entry<QName, Object> prop: ((GenericFeature)f).getProperties().entrySet())
-                            gmlBindings.ensureNamespaceDecl(xmlWriter, prop.getKey());
+                        gmlBindings.ensureNamespaceDecl(xmlWriter, f.getQName());
+                        if (f instanceof GenericFeature)
+                        {
+                            for (Entry<QName, Object> prop: ((GenericFeature)f).getProperties().entrySet())
+                                gmlBindings.ensureNamespaceDecl(xmlWriter, prop.getKey());
+                        }
+                        
+                        first = false;
                     }
                     
-                    first = false;
+                    xmlWriter.writeStartElement(sosNsUri, "featureMember");
+                    gmlBindings.writeAbstractFeature(xmlWriter, f);
+                    xmlWriter.writeEndElement();
+                    xmlWriter.flush();
+                    os.write('\n');
                 }
-                
-                xmlWriter.writeStartElement(sosNsUri, "featureMember");
-                gmlBindings.writeAbstractFeature(xmlWriter, f);
-                xmlWriter.writeEndElement();
-                xmlWriter.flush();
-                os.write('\n');
             }
+            
+            // close SOAP elements
+            endSoapEnvelope(request, xmlWriter);
+                    
+            xmlWriter.writeEndDocument();
+            xmlWriter.close();
+        }
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot get features from provider", e);
+        }
+        catch (XMLStreamException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
+        }
+    }
+    
+    
+    @Override
+    protected void handleRequest(InsertSensorRequest request) throws IOException
+    {
+        checkTransactionalSupport(request);
+        
+        // security check
+        securityHandler.checkPermission(securityHandler.sos_insert_sensor);
+        
+        // check query parameters
+        OWSExceptionReport report = new OWSExceptionReport();
+        TransactionUtils.checkSensorML(request.getProcedureDescription(), report);
+        report.process();
+        
+        // get sensor UID
+        String sensorUID = request.getProcedureDescription().getUniqueIdentifier();
+        log.info("Registering new sensor {}", sensorUID);
+        
+        // offering name is derived from sensor UID
+        String offeringID = sensorUID + "-sos";
+        
+        ///////////////////////////////////////////////////////////////////////////////////////
+        // we configure things step by step so we can fix config if it was partially altered //
+        ///////////////////////////////////////////////////////////////////////////////////////
+        HashSet<ModuleConfig> configSaveList = new HashSet<>();
+        ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
+        
+        // create new virtual sensor module if needed            
+        IModule<?> sensorModule = moduleReg.getLoadedModuleById(sensorUID);
+        if (sensorModule == null)
+        {
+            sensorModule = TransactionUtils.createSensorModule(sensorUID, request.getProcedureDescription());
+            configSaveList.add(sensorModule.getConfiguration());
+        }            
+        // else simply update description
+        else
+            TransactionUtils.updateSensorDescription(sensorModule, request.getProcedureDescription());
+        
+        // also create associated storage if requested
+        IModule<?> storageModule = null;
+        if (config.newStorageConfig != null)
+        {
+            storageModule = addStorageForSensor((SWETransactionalSensor)sensorModule);
+            configSaveList.add(storageModule.getConfiguration());
+            
+            // force regenerate provider and consumer if needed
+            ISOSDataProviderFactory provider = dataProviders.get(offeringID);
+            if (provider != null && !(provider instanceof StorageDataProviderFactory))
+                dataProviders.remove(offeringID);
+            ISOSDataConsumer consumer = dataConsumers.get(offeringID);
+            if (consumer != null && !(consumer instanceof SensorWithStorageConsumer))
+                dataConsumers.remove(offeringID);
         }
         
-        // close SOAP elements
-        endSoapEnvelope(request, xmlWriter);
-                
-        xmlWriter.writeEndDocument();
-        xmlWriter.close();
-    }
-    
-    
-    @Override
-    protected void handleRequest(InsertSensorRequest request) throws Exception
-    {
-        try
+        // add new provider if needed
+        ISOSDataProviderFactory provider = dataProviders.get(offeringID);
+        if (provider == null)
         {
-            checkTransactionalSupport(request);
+            // generate new provider config
+            SensorDataProviderConfig providerConfig = new SensorDataProviderConfig();
+            providerConfig.enabled = true;
+            providerConfig.sensorID = sensorUID;
+            providerConfig.storageID = (storageModule != null) ? storageModule.getLocalID() : null;
+            providerConfig.offeringID = offeringID;
+            config.dataProviders.replaceOrAdd(providerConfig);
             
-            // security check
-            securityHandler.checkPermission(securityHandler.sos_insert_sensor);
-            
-            // check query parameters
-            OWSExceptionReport report = new OWSExceptionReport();
-            TransactionUtils.checkSensorML(request.getProcedureDescription(), report);
-            report.process();
-            
-            // get sensor UID
-            String sensorUID = request.getProcedureDescription().getUniqueIdentifier();
-            log.info("Registering new sensor " + sensorUID);
-            
-            // offering name is derived from sensor UID
-            String offeringID = sensorUID + "-sos";
-            
-            ///////////////////////////////////////////////////////////////////////////////////////
-            // we configure things step by step so we can fix config if it was partially altered //
-            ///////////////////////////////////////////////////////////////////////////////////////
-            HashSet<ModuleConfig> configSaveList = new HashSet<ModuleConfig>();
-            ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
-            
-            // create new virtual sensor module if needed            
-            IModule<?> sensorModule = moduleReg.getLoadedModuleById(sensorUID);
-            if (sensorModule == null)
+            // instantiate and register provider
+            try
             {
-                sensorModule = TransactionUtils.createSensorModule(sensorUID, request.getProcedureDescription());
-                configSaveList.add(sensorModule.getConfiguration());
-            }            
-            // else simply update description
-            else
-                TransactionUtils.updateSensorDescription(sensorModule, request.getProcedureDescription());
-            
-            // also create associated storage if requested
-            IModule<?> storageModule = null;
-            if (config.newStorageConfig != null)
-            {
-                storageModule = addStorageForSensor((SWETransactionalSensor)sensorModule);
-                configSaveList.add(storageModule.getConfiguration());
-                
-                // force regenerate provider and consumer if needed
-                ISOSDataProviderFactory provider = dataProviders.get(offeringID);
-                if (provider != null && !(provider instanceof StorageDataProviderFactory))
-                    dataProviders.remove(offeringID);
-                ISOSDataConsumer consumer = dataConsumers.get(offeringID);
-                if (consumer != null && !(consumer instanceof SensorWithStorageConsumer))
-                    dataConsumers.remove(offeringID);
-            }
-            
-            // add new provider if needed
-            ISOSDataProviderFactory provider = dataProviders.get(offeringID);
-            if (provider == null)
-            {
-                // generate new provider config
-                SensorDataProviderConfig providerConfig = new SensorDataProviderConfig();
-                providerConfig.enabled = true;
-                providerConfig.sensorID = sensorUID;
-                providerConfig.storageID = (storageModule != null) ? storageModule.getLocalID() : null;
-                providerConfig.offeringID = offeringID;
-                config.dataProviders.replaceOrAdd(providerConfig);
-                
-                // instantiate and register provider
                 provider = providerConfig.getFactory(this);
                 dataProviders.put(offeringID, provider);
-                
-                // add new permissions for this offering
-                securityHandler.addOfferingPermissions(offeringID);
-                
-                configSaveList.add(config);
+            }
+            catch (SensorHubException e)
+            {
+                throw new IOException("Cannot create new provider", e);
             }
             
-            // add new consumer if needed
-            ISOSDataConsumer consumer = dataConsumers.get(offeringID);
-            if (consumer == null)
+            // add new permissions for this offering
+            securityHandler.addOfferingPermissions(offeringID);
+            
+            configSaveList.add(config);
+        }
+        
+        // add new consumer if needed
+        ISOSDataConsumer consumer = dataConsumers.get(offeringID);
+        if (consumer == null)
+        {
+            // generate new consumer config
+            SensorConsumerConfig consumerConfig = new SensorConsumerConfig();
+            consumerConfig.enabled = true;
+            consumerConfig.offeringID = offeringID;
+            consumerConfig.sensorID = sensorUID;
+            consumerConfig.storageID = (storageModule != null) ? storageModule.getLocalID() : null;
+            config.dataConsumers.replaceOrAdd(consumerConfig);
+            
+            // instantiate and register consumer
+            try
             {
-                // generate new consumer config
-                SensorConsumerConfig consumerConfig = new SensorConsumerConfig();
-                consumerConfig.enabled = true;
-                consumerConfig.offeringID = offeringID;
-                consumerConfig.sensorID = sensorUID;
-                consumerConfig.storageID = (storageModule != null) ? storageModule.getLocalID() : null;
-                config.dataConsumers.replaceOrAdd(consumerConfig);
-                
-                // instantiate and register consumer
                 consumer = consumerConfig.getConsumer();
                 dataConsumers.put(offeringID, consumer);
-                
-                configSaveList.add(config);
             }
-            
-            // save module configs so we don't loose anything on restart
-            moduleReg.saveConfiguration(configSaveList.toArray(new ModuleConfig[0]));
-            
-            // update capabilities
-            showProviderCaps(provider);
-            
-            // build and send response
-            InsertSensorResponse resp = new InsertSensorResponse();
-            resp.setAssignedOffering(offeringID);
-            resp.setAssignedProcedureId(sensorUID);
-            sendResponse(request, resp);
-        }
-        finally
-        {
-            
-        }
-    }
-    
-    
-    @Override
-    protected void handleRequest(DeleteSensorRequest request) throws Exception
-    {
-        try
-        {
-            checkTransactionalSupport(request);
-            
-            // check query parameters
-            String sensorUID = request.getProcedureId();
-            OWSExceptionReport report = new OWSExceptionReport();
-            checkQueryProcedure(sensorUID, report);
-            report.process();
-            
-            // security check
-            String offeringID = procedureToOfferingMap.get(sensorUID);
-            securityHandler.checkPermission(offeringID, securityHandler.sos_delete_sensor);            
-
-            // destroy associated virtual sensor
-            // this will automatically remove corresponding provider and consumer
-            SWETransactionalSensor virtualSensor = (SWETransactionalSensor)dataConsumers.get(offeringID);
-            SensorHub.getInstance().getModuleRegistry().destroyModule(virtualSensor.getLocalID());
-            
-            // TODO destroy storage if requested in config 
-            
-            // build and send response
-            DeleteSensorResponse resp = new DeleteSensorResponse(SOSUtils.SOS);
-            resp.setDeletedProcedure(sensorUID);
-            sendResponse(request, resp);
-        }
-        finally
-        {
-
-        }
-    }
-    
-    
-    @Override
-    protected void handleRequest(UpdateSensorRequest request) throws Exception
-    {
-        try
-        {
-            checkTransactionalSupport(request);
-            
-            // check query parameters
-            String sensorUID = request.getProcedureId();
-            OWSExceptionReport report = new OWSExceptionReport();
-            checkQueryProcedure(sensorUID, report);
-            report.process();
-            
-            // security check
-            String offeringID = procedureToOfferingMap.get(sensorUID);
-            securityHandler.checkPermission(offeringID, securityHandler.sos_update_sensor);
-            
-            // check that format is supported
-            checkQueryProcedureFormat(offeringID, request.getProcedureDescriptionFormat(), report);            
-            
-            // check that SensorML contains correct unique ID
-            TransactionUtils.checkSensorML(request.getProcedureDescription(), report);            
-            report.process();
-            
-            // get consumer and update
-            ISOSDataConsumer consumer = getDataConsumerBySensorID(request.getProcedureId());                
-            consumer.updateSensor(request.getProcedureDescription());
-            
-            // build and send response
-            UpdateSensorResponse resp = new UpdateSensorResponse(SOSUtils.SOS);
-            resp.setUpdatedProcedure(sensorUID);
-            sendResponse(request, resp);
-        }
-        finally
-        {
-
-        }
-    }
-    
-    
-    @Override
-    protected void handleRequest(InsertObservationRequest request) throws Exception
-    {
-        try
-        {
-            checkTransactionalSupport(request);
-            
-            // retrieve consumer for selected offering
-            ISOSDataConsumer consumer = getDataConsumerByOfferingID(request.getOffering());
-            
-            // security check
-            securityHandler.checkPermission(request.getOffering(), securityHandler.sos_insert_obs);
-            
-            // send new observation
-            consumer.newObservation(request.getObservations().toArray(new IObservation[0]));            
-            
-            // build and send response
-            InsertObservationResponse resp = new InsertObservationResponse();
-            sendResponse(request, resp);
-        }
-        finally
-        {
-            
-        }
-    }
-    
-    
-    @Override
-    protected void handleRequest(InsertResultTemplateRequest request) throws Exception
-    {
-        try
-        {
-            checkTransactionalSupport(request);
-            
-            // retrieve consumer for selected offering
-            String offeringID = request.getOffering();
-            ISOSDataConsumer consumer = getDataConsumerByOfferingID(offeringID);
-                        
-            // security check
-            securityHandler.checkPermission(offeringID, securityHandler.sos_insert_obs);
-                        
-            // get template ID
-            // the same template ID is always returned for a given observable            
-            String templateID = consumer.newResultTemplate(request.getResultStructure(),
-                                                           request.getResultEncoding(),
-                                                           request.getObservationTemplate());
-                        
-            // only continue of template was not already registered
-            if (!templateToOfferingMap.containsKey(templateID))
+            catch (SensorHubException e)
             {
-                templateToOfferingMap.put(templateID, offeringID);
-                
-                // re-generate capabilities
-                ISOSDataProviderFactory provider = getDataProviderFactoryByOfferingID(offeringID);
-                SOSOfferingCapabilities newCaps = generateCapabilities(provider);
-                int oldIndex = 0;
-                for (OWSLayerCapabilities offCaps: capabilities.getLayers())
-                {
-                    if (offCaps.getIdentifier().equals(offeringID))
-                        break; 
-                    oldIndex++;
-                }
-                capabilities.getLayers().set(oldIndex, newCaps);
-                offeringCaps.put(newCaps.getIdentifier(), newCaps);
+                throw new IOException("Cannot create new consumer", e);
             }
             
-            // build and send response
-            InsertResultTemplateResponse resp = new InsertResultTemplateResponse();
-            resp.setAcceptedTemplateId(templateID);
-            sendResponse(request, resp);
+            configSaveList.add(config);
         }
-        finally
-        {
-            
-        }
+        
+        // save module configs so we don't loose anything on restart
+        moduleReg.saveConfiguration(configSaveList.toArray(new ModuleConfig[0]));
+        
+        // update capabilities
+        showProviderCaps(provider);
+        
+        // build and send response
+        InsertSensorResponse resp = new InsertSensorResponse();
+        resp.setAssignedOffering(offeringID);
+        resp.setAssignedProcedureId(sensorUID);
+        sendResponse(request, resp);
     }
     
     
     @Override
-    protected void handleRequest(InsertResultRequest request) throws Exception
+    protected void handleRequest(DeleteSensorRequest request) throws IOException
+    {
+        checkTransactionalSupport(request);
+        
+        // check query parameters
+        String sensorUID = request.getProcedureId();
+        OWSExceptionReport report = new OWSExceptionReport();
+        checkQueryProcedure(sensorUID, report);
+        report.process();
+        
+        // security check
+        String offeringID = procedureToOfferingMap.get(sensorUID);
+        securityHandler.checkPermission(offeringID, securityHandler.sos_delete_sensor);            
+
+        // destroy associated virtual sensor
+        try
+        {
+            dataProviders.remove(offeringID);
+            SWETransactionalSensor virtualSensor = (SWETransactionalSensor)dataConsumers.remove(offeringID);
+            SensorHub.getInstance().getModuleRegistry().destroyModule(virtualSensor.getLocalID());
+        }
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot delete virtual sensor " + sensorUID, e);
+        }
+        
+        // TODO also destroy storage if requested in config 
+        
+        // build and send response
+        DeleteSensorResponse resp = new DeleteSensorResponse(SOSUtils.SOS);
+        resp.setDeletedProcedure(sensorUID);
+        sendResponse(request, resp);
+    }
+    
+    
+    @Override
+    protected void handleRequest(UpdateSensorRequest request) throws IOException
+    {
+        checkTransactionalSupport(request);
+        
+        // check query parameters
+        String sensorUID = request.getProcedureId();
+        OWSExceptionReport report = new OWSExceptionReport();
+        checkQueryProcedure(sensorUID, report);
+        report.process();
+        
+        // security check
+        String offeringID = procedureToOfferingMap.get(sensorUID);
+        securityHandler.checkPermission(offeringID, securityHandler.sos_update_sensor);
+        
+        // check that format is supported
+        checkQueryProcedureFormat(offeringID, request.getProcedureDescriptionFormat(), report);            
+        
+        // check that SensorML contains correct unique ID
+        TransactionUtils.checkSensorML(request.getProcedureDescription(), report);            
+        report.process();
+        
+        // get consumer and update
+        ISOSDataConsumer consumer = getDataConsumerBySensorID(request.getProcedureId());                
+        consumer.updateSensor(request.getProcedureDescription());
+        
+        // build and send response
+        UpdateSensorResponse resp = new UpdateSensorResponse(SOSUtils.SOS);
+        resp.setUpdatedProcedure(sensorUID);
+        sendResponse(request, resp);
+    }
+    
+    
+    @Override
+    protected void handleRequest(InsertObservationRequest request) throws IOException
+    {
+        checkTransactionalSupport(request);
+        
+        // retrieve consumer for selected offering
+        ISOSDataConsumer consumer = getDataConsumerByOfferingID(request.getOffering());
+        
+        // security check
+        securityHandler.checkPermission(request.getOffering(), securityHandler.sos_insert_obs);
+        
+        // send new observation
+        consumer.newObservation(request.getObservations().toArray(new IObservation[0]));            
+        
+        // build and send response
+        InsertObservationResponse resp = new InsertObservationResponse();
+        sendResponse(request, resp);
+    }
+    
+    
+    @Override
+    protected void handleRequest(InsertResultTemplateRequest request) throws IOException
+    {
+        checkTransactionalSupport(request);
+        
+        // retrieve consumer for selected offering
+        String offeringID = request.getOffering();
+        ISOSDataConsumer consumer = getDataConsumerByOfferingID(offeringID);
+                    
+        // security check
+        securityHandler.checkPermission(offeringID, securityHandler.sos_insert_obs);
+                    
+        // get template ID
+        // the same template ID is always returned for a given observable            
+        String templateID = consumer.newResultTemplate(request.getResultStructure(),
+                                                       request.getResultEncoding(),
+                                                       request.getObservationTemplate());
+                    
+        // only continue of template was not already registered
+        if (!templateToOfferingMap.containsKey(templateID))
+        {
+            templateToOfferingMap.put(templateID, offeringID);
+            
+            // update offering capabilities
+            showProviderCaps(getDataProviderFactoryByOfferingID(offeringID));
+        }
+        
+        // build and send response
+        InsertResultTemplateResponse resp = new InsertResultTemplateResponse();
+        resp.setAcceptedTemplateId(templateID);
+        sendResponse(request, resp);
+    }
+    
+    
+    @Override
+    protected void handleRequest(InsertResultRequest request) throws IOException
     {
         DataStreamParser parser = null;
         
@@ -1628,7 +1591,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         
         // retrieve consumer based on template id
         String templateID = request.getTemplateId();
-        ISOSDataConsumer consumer = (ISOSDataConsumer)getDataConsumerByTemplateID(templateID);
+        ISOSDataConsumer consumer = getDataConsumerByTemplateID(templateID);
         
         // security check
         String offeringID = templateToOfferingMap.get(templateID);
@@ -1687,6 +1650,58 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             if (parser != null)
                 parser.close();
         }
+    }
+    
+    
+    /*
+     * Create proper writer depending on selected format
+     */
+    protected XMLStreamWriter getResponseStreamWriter(OWSRequest request, String format) throws IOException
+    {
+        OutputStream os = new BufferedOutputStream(request.getResponseStream());
+        
+        if (SWESOfferingCapabilities.FORMAT_SML2.equals(format) ||
+            SWESOfferingCapabilities.FORMAT_OM2.equals(format))
+        {
+            try
+            {
+                XMLOutputFactory factory = XMLImplFinder.getStaxOutputFactory();
+                XMLStreamWriter writer = factory.createXMLStreamWriter(os, StandardCharsets.UTF_8.name());
+                request.getHttpResponse().setContentType(OWSUtils.XML_MIME_TYPE);
+                return new IndentingXMLStreamWriter(writer);
+            }
+            catch (XMLStreamException e)
+            {
+                throw new IOException("Cannot create XML stream writer", e);
+            }
+        }
+        else if (SWESOfferingCapabilities.FORMAT_SML2_JSON.equals(format))
+        {
+            try
+            {
+                request.getHttpResponse().setContentType(OWSUtils.JSON_MIME_TYPE);
+                return new SMLJsonStreamWriter(os, StandardCharsets.UTF_8.name());
+            }
+            catch (JsonStreamException e)
+            {
+                throw new IOException("Cannot create JSON stream writer", e);
+            }
+        }
+        else if (SWESOfferingCapabilities.FORMAT_OM2_JSON.equals(format))
+        {
+            try
+            {
+                request.getHttpResponse().setContentType(OWSUtils.JSON_MIME_TYPE);
+                return new SWEJsonStreamWriter(os, StandardCharsets.UTF_8.name());
+            }
+            catch (JsonStreamException e)
+            {
+                throw new IOException("Cannot create JSON stream writer", e);
+            }
+        }
+        
+        
+        return null;
     }
 
 
@@ -1795,7 +1810,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         // refresh offering capabilities if needed
         try
         {
-            ISOSDataProviderFactory provider = (ISOSDataProviderFactory)dataProviders.get(offeringID);
+            ISOSDataProviderFactory provider = dataProviders.get(offeringID);
             provider.updateCapabilities();
         }
         catch (Exception e)
@@ -1868,7 +1883,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataProvider getDataProvider(String offering, SOSDataFilter filter) throws Exception
+    protected ISOSDataProvider getDataProvider(String offering, SOSDataFilter filter) throws IOException
     {
         try
         {
@@ -1877,8 +1892,13 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             checkAndGetOffering(offering);
             ISOSDataProviderFactory factory = dataProviders.get(offering);
             if (factory == null)
-                throw new IllegalStateException("No valid data provider factory found for offering " + offering);
+                throw new IllegalStateException("No provider factory found");
+            
             return factory.getNewDataProvider(filter);
+        }
+        catch (Exception e)
+        {
+            throw new IOException("Cannot get provider for offering " + offering, e);
         }
         finally
         {
@@ -1887,7 +1907,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataProviderFactory getDataProviderFactoryByOfferingID(String offering) throws Exception
+    protected ISOSDataProviderFactory getDataProviderFactoryByOfferingID(String offering) throws SOSException
     {
         try
         {
@@ -1896,7 +1916,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             ISOSDataProviderFactory factory = dataProviders.get(offering);
             if (factory == null)
                 throw new IllegalStateException("No valid data provider factory found for offering " + offering);
-            return (ISOSDataProviderFactory)factory;
+            return factory;
         }
         finally
         {
@@ -1905,7 +1925,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataProviderFactory getDataProviderFactoryBySensorID(String sensorID) throws Exception
+    protected ISOSDataProviderFactory getDataProviderFactoryBySensorID(String sensorID) throws SOSException
     {
         try
         {
@@ -1920,7 +1940,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataConsumer getDataConsumerByOfferingID(String offering) throws Exception
+    protected ISOSDataConsumer getDataConsumerByOfferingID(String offering) throws SOSException
     {
         try
         {
@@ -1941,7 +1961,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataConsumer getDataConsumerBySensorID(String sensorID) throws Exception
+    protected ISOSDataConsumer getDataConsumerBySensorID(String sensorID) throws SOSException
     {
         try
         {
@@ -1960,7 +1980,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected void checkTransactionalSupport(OWSRequest request) throws Exception
+    protected void checkTransactionalSupport(OWSRequest request) throws SOSException
     {
         if (!config.enableTransactional)
             throw new SOSException(SOSException.invalid_param_code, "request", request.getOperation(), request.getOperation() + " operation is not supported on this endpoint"); 
@@ -1974,7 +1994,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected ISOSDataConsumer getDataConsumerByTemplateID(String templateID) throws Exception
+    protected ISOSDataConsumer getDataConsumerByTemplateID(String templateID) throws SOSException
     {
         try
         {
@@ -2051,7 +2071,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected boolean writeCustomFormatStream(GetResultRequest request, ISOSDataProvider dataProvider) throws Exception
+    protected boolean writeCustomFormatStream(GetResultRequest request, ISOSDataProvider dataProvider) throws IOException
     {
         String format = request.getFormat();
         

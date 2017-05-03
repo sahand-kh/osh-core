@@ -14,6 +14,10 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.ui;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import org.sensorhub.api.module.IModule;
+import org.sensorhub.utils.ModuleUtils;
 import com.vaadin.server.FontAwesome;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.UI;
@@ -21,7 +25,7 @@ import com.vaadin.ui.UI;
 
 public class DisplayUtils
 {
-
+    
     public static String getPrettyName(String text)
     {
         StringBuilder buf = new StringBuilder(text.substring(text.lastIndexOf('.')+1));
@@ -63,5 +67,67 @@ public class DisplayUtils
                 "</span>&nbsp;&nbsp;" + text, Notification.Type.ERROR_MESSAGE);
         notif.setHtmlContentAllowed(true);
         notif.show(UI.getCurrent().getPage());
+    }
+
+    
+    public static void showErrorPopup(String msg, Throwable e)
+    {
+        if (e != null)
+        {
+            AdminUIModule.getInstance().getLogger().error(msg, e);
+            msg += "<br/>" + e.getMessage();
+        }
+        
+        new Notification(
+                "Error<br/>",
+                msg,
+                Notification.Type.ERROR_MESSAGE, true)
+                .show(UI.getCurrent().getPage());
+    }
+    
+    
+    public static void showErrorDetails(IModule<?> module, Throwable e)
+    {
+        StringWriter writer = new StringWriter();
+        
+        // scan causes for NoClassDefFoundErrors
+        // -> warn of a potential dependency problem
+        Throwable error = e;
+        while (error != null)
+        {
+            if (error instanceof NoClassDefFoundError || error instanceof ClassNotFoundException)
+            {
+                writer.append(getDependencyErrorMessage(module.getClass()));
+                writer.append('\n');
+                break;
+            }
+            
+            error = error.getCause();
+        }
+        
+        e.printStackTrace(new PrintWriter(writer));
+        String stackTrace = "<pre>" + writer.toString() + "</pre>";
+        
+        new Notification(
+                "Error<br/>",
+                stackTrace,
+                Notification.Type.ERROR_MESSAGE, true)
+                .show(UI.getCurrent().getPage());
+    }
+    
+    
+    public static void showDependencyError(Class<?> clazz, Throwable e)
+    {
+        showErrorPopup(getDependencyErrorMessage(clazz), e);
+    }
+    
+    
+    private static String getDependencyErrorMessage(Class<?> clazz)
+    {
+        StringBuilder msg = new StringBuilder();
+        msg.append("A class could not be found at runtime.\nPlease check that the following dependencies are installed:\n\n");
+        for (String dep: ModuleUtils.getBundleDependencies(clazz))
+            msg.append(dep).append('\n');
+        return msg.toString();
     }
 }

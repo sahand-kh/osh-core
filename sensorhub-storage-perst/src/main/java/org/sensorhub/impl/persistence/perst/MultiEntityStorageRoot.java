@@ -17,11 +17,11 @@ package org.sensorhub.impl.persistence.perst;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import net.opengis.gml.v32.AbstractFeature;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
+import org.garret.perst.IPersistentMap;
 import org.garret.perst.Storage;
 import org.sensorhub.api.persistence.DataKey;
 import org.sensorhub.api.persistence.IDataFilter;
@@ -44,7 +44,7 @@ import org.vast.util.Bbox;
  */
 class MultiEntityStorageRoot extends ObsStorageRoot implements IObsStorage, IMultiSourceStorage<IObsStorage>
 {
-    Map<String, ObsStorageRoot> obsStores;
+    IPersistentMap<String, ObsStorageRoot> obsStores;
     
     
     /* to iterate through a list of producers records in parallel while sorting by time */

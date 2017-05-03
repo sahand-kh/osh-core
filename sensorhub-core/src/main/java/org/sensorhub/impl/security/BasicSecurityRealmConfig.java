@@ -50,36 +50,43 @@ public class BasicSecurityRealmConfig extends SecurityModuleConfig
         //public String certificate;
         public List<String> roles = new ArrayList<String>();
         
+        @Override
         public String getId()
         {
             return userID;
         }
         
+        @Override
         public String getName()
         {
             return name;
         }
         
+        @Override
         public String getPassword()
         {
             return password;
         }
         
+        @Override
         public Collection<String> getRoles()
         {
             return roles;
         }
         
+        @Override
         public Map<String, Object> getAttributes()
         {
             return Collections.EMPTY_MAP;
         }
         
+        @Override
         public Collection<IPermissionPath> getAllowList()
         {
             return Collections.EMPTY_LIST;
         }
         
+        @Override
         public Collection<IPermissionPath> getDenyList()
         {
             return Collections.EMPTY_LIST;
@@ -101,26 +108,31 @@ public class BasicSecurityRealmConfig extends SecurityModuleConfig
         transient Collection<IPermissionPath> allowList = new ArrayList<IPermissionPath>();
         transient Collection<IPermissionPath> denyList = new ArrayList<IPermissionPath>();
 
+        @Override
         public String getId()
         {
             return roleID;
         }
         
+        @Override
         public String getName()
         {
             return name;
         }        
 
+        @Override
         public String getDescription()
         {
             return description;
         }
         
+        @Override
         public Collection<IPermissionPath> getAllowList()
         {
             return allowList;
         }
         
+        @Override
         public Collection<IPermissionPath> getDenyList()
         {
             return denyList;

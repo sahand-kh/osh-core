@@ -61,11 +61,10 @@ import com.vaadin.ui.Table;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class StorageAdminPanel extends DefaultModulePanel<IRecordStorageModule<?>> implements IModuleAdminPanel<IRecordStorageModule<?>>
 {
-    private static final long serialVersionUID = 9206002459600214988L;
-    
-    
+        
     @Override
     public void build(final MyBeanItem<ModuleConfig> beanItem, final IRecordStorageModule<?> storage)
     {
@@ -196,7 +195,7 @@ public class StorageAdminPanel extends DefaultModulePanel<IRecordStorageModule<?
         gantt.addStep(dataTimeRange);
         
         gantt.addClickListener(new Gantt.ClickListener() {
-            private static final long serialVersionUID = 1L;
+            @Override
             public void onGanttClick(org.tltv.gantt.Gantt.ClickEvent event) {
                 System.out.println("click");
             }
@@ -251,22 +250,26 @@ public class StorageAdminPanel extends DefaultModulePanel<IRecordStorageModule<?
             if (def != null && def.equals(SWEConstants.DEF_SAMPLING_TIME))
             {
                 table.setConverter(propId, new Converter<String, String>() {
-                    private static final long serialVersionUID = 1L;
                     DateTimeFormat dateFormat = new DateTimeFormat();
+                    
+                    @Override
                     public String convertToPresentation(String value, Class<? extends String> targetType, Locale locale) throws ConversionException
                     {
                         return dateFormat.formatIso(Double.parseDouble(value), 0);
                     }
+                    
                     @Override
                     public String convertToModel(String value, Class<? extends String> targetType, Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException
                     {
                         return null;
                     }
+                    
                     @Override
                     public Class<String> getModelType()
                     {
                         return String.class;
                     }
+                    
                     @Override
                     public Class<String> getPresentationType()
                     {

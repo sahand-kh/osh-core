@@ -24,25 +24,25 @@ import org.vast.util.Asserts;
 
 public class SOSSecurity extends ModuleSecurity
 {    
-    private final static String LABEL_CAPS = "Capabilities";
-    private final static String LABEL_SENSOR = "Sensor Descriptions";
-    private final static String LABEL_FOI = "Features of Interest";
-    private final static String LABEL_OBS = "Observations";    
+    private static final String LABEL_CAPS = "Capabilities";
+    private static final String LABEL_SENSOR = "Sensor Descriptions";
+    private static final String LABEL_FOI = "Features of Interest";
+    private static final String LABEL_OBS = "Observations";    
     
-    public final IPermission sos_read;
-    public final IPermission sos_read_caps;
-    public final IPermission sos_read_sensor;
-    public final IPermission sos_read_foi;
-    public final IPermission sos_read_obs;
-    public final IPermission sos_insert;
-    public final IPermission sos_insert_sensor;
-    public final IPermission sos_insert_obs;
-    public final IPermission sos_update;
-    public final IPermission sos_update_sensor;
-    public final IPermission sos_update_obs;
-    public final IPermission sos_delete;
-    public final IPermission sos_delete_sensor;
-    public final IPermission sos_delete_obs;
+    final IPermission sos_read;
+    final IPermission sos_read_caps;
+    final IPermission sos_read_sensor;
+    final IPermission sos_read_foi;
+    final IPermission sos_read_obs;
+    final IPermission sos_insert;
+    final IPermission sos_insert_sensor;
+    final IPermission sos_insert_obs;
+    final IPermission sos_update;
+    final IPermission sos_update_sensor;
+    final IPermission sos_update_obs;
+    final IPermission sos_delete;
+    final IPermission sos_delete_sensor;
+    final IPermission sos_delete_obs;
     
     
     public SOSSecurity(SOSService sos, boolean enable)
@@ -82,21 +82,6 @@ public class SOSSecurity extends ModuleSecurity
     }
     
     
-    public void checkPermission(String offeringUri, IPermission perm) throws SecurityException
-    {
-        String permName = getOfferingPermissionName(offeringUri);
-        IPermission offPerm = perm.getChildren().get(permName);
-        Asserts.checkNotNull(offPerm, "Invalid permission check");
-        checkPermission(offPerm);
-    }
-    
-    
-    protected String getOfferingPermissionName(String offeringUri)
-    {
-        return "offering[" + offeringUri + "]";
-    }
-    
-    
     protected void addOfferingPermissions(String offeringUri)
     {
         String permName = getOfferingPermissionName(offeringUri);
@@ -109,5 +94,20 @@ public class SOSSecurity extends ModuleSecurity
         new ItemPermission(sos_delete_obs, permName);
         new ItemPermission(sos_update_sensor, permName);
         new ItemPermission(sos_delete_sensor, permName);
+    }
+    
+    
+    public void checkPermission(String offeringUri, IPermission perm) throws SecurityException
+    {
+        String permName = getOfferingPermissionName(offeringUri);
+        IPermission offPerm = perm.getChildren().get(permName);
+        Asserts.checkNotNull(offPerm, "Invalid permission check");
+        checkPermission(offPerm);
+    }
+    
+    
+    protected String getOfferingPermissionName(String offeringUri)
+    {
+        return "offering[" + offeringUri + "]";
     }
 }

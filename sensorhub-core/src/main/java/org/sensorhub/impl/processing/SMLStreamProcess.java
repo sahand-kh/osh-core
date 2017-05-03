@@ -113,9 +113,16 @@ public class SMLStreamProcess extends AbstractStreamProcess<SMLStreamProcessConf
 
 
     @Override
-    protected void connectInput(String inputName, String dataPath, DataQueue inputQueue) throws Exception
+    protected void connectInput(String inputName, String dataPath, DataQueue inputQueue) throws ProcessException
     {        
-        smlProcess.connectInput(inputName, dataPath, inputQueue);
+        try
+        {
+            smlProcess.connectInput(inputName, dataPath, inputQueue);
+        }
+        catch (SMLException e)
+        {
+            throw new ProcessException("Cannot connect input", e);
+        }
     }
     
     
@@ -157,6 +164,7 @@ public class SMLStreamProcess extends AbstractStreamProcess<SMLStreamProcessConf
     }
     
     
+    @Override
     public void stop()
     {
         // stop processing thread

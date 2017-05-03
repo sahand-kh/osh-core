@@ -23,13 +23,11 @@ import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
 
+@SuppressWarnings("serial")
 public class ValueEnumPopup extends Window
 {
-    private static final long serialVersionUID = 3541095366722509161L;
-
     
-    @SuppressWarnings({ "serial", "rawtypes" })
-    public ValueEnumPopup(int width, final ValueCallback callback, final Enum[] allowedValues)
+    public ValueEnumPopup(int width, final ValueCallback callback, final Enum<?>[] allowedValues)
     {
         super("Select New Value");
         VerticalLayout layout = new VerticalLayout();

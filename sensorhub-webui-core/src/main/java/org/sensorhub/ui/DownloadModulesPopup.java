@@ -15,6 +15,7 @@ Copyright (C) 2012-2017 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.ui;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.URL;
@@ -36,9 +37,9 @@ import com.vaadin.ui.Component;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Link;
-import com.vaadin.ui.Notification;
 import com.vaadin.ui.ProgressBar;
 import com.vaadin.ui.TreeTable;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
@@ -51,9 +52,9 @@ import com.vaadin.ui.Window;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 24, 2017
  */
+@SuppressWarnings("serial")
 public class DownloadModulesPopup extends Window
 {
-    private static final long serialVersionUID = 2104928069934026519L;
     private static final String BINTRAY_API_ROOT = "https://api.bintray.com/";
     private static final String BINTRAY_SUBJECT = "sensiasoft";
     private static final String BINTRAY_REPO = "osh";
@@ -65,7 +66,7 @@ public class DownloadModulesPopup extends Window
     private static final String LOADING_MSG = "Loading...";
     
     TreeTable table;
-    ExecutorService exec = Executors.newFixedThreadPool(2);
+    transient ExecutorService exec = Executors.newFixedThreadPool(2);
     
     
     static class BintrayArtifact
@@ -112,6 +113,7 @@ public class DownloadModulesPopup extends Window
         // load info in separate thread
         exec.execute(new Runnable()
         {
+            @Override
             public void run()
             {
                 try
@@ -124,102 +126,33 @@ public class DownloadModulesPopup extends Window
                         
                         try
                         {
-                            final BintrayPackage pkg = getBintrayPackageInfo(pkgName);
-                            pkg.files =  getBintrayPackageFiles(pkgName);
-                            
-                            // remove non-executable jar files
-                            Iterator<BintrayArtifact> it = pkg.files.iterator();
-                            while (it.hasNext())
+                            BintrayPackage pkg = getBintrayPackageInfo(pkgName);
+                            if (pkg != null)
                             {
-                                String fName = it.next().name;
-                                if (!fName.endsWith("jar") || fName.endsWith("-sources.jar") || fName.endsWith("-javadoc.jar"))
-                                    it.remove();
-                            }
-                            
-                            // draw table in UI thread
-                            getUI().access(new Runnable() {
-                                public void run()
+                                pkg.files =  getBintrayPackageFiles(pkgName);
+                                
+                                // remove non-executable jar files
+                                Iterator<BintrayArtifact> it = pkg.files.iterator();
+                                while (it.hasNext())
                                 {
-                                    // create table if not there yet
-                                    if (table == null)
-                                    {
-                                        setWidth(70, Unit.PERCENTAGE);
-                                        table = new TreeTable();
-                                        table.setSizeFull();      
-                                        table.setSelectable(false);
-                                        table.addContainerProperty(ModuleTypeSelectionPopup.PROP_NAME, Component.class, null);
-                                        table.addContainerProperty(ModuleTypeSelectionPopup.PROP_VERSION, String.class, null);
-                                        table.addContainerProperty(ModuleTypeSelectionPopup.PROP_DESC, String.class, null);
-                                        table.addContainerProperty(ModuleTypeSelectionPopup.PROP_AUTHOR, String.class, null);
-                                        table.setColumnHeaders(new String[] {"Package", "OSH Version", "Description", "Author"});
-                                        table.setColumnWidth(ModuleTypeSelectionPopup.PROP_NAME, 300);
-                                        table.setColumnExpandRatio(ModuleTypeSelectionPopup.PROP_DESC, 10);
-                                        layout.addComponent(table, 0);
-                                    }
-                                    
-                                    // add package info
-                                    String href = BINTRAY_WEB_ROOT + pkg.name; 
-                                    Link link = new Link(pkg.name, new ExternalResource(href), LINK_TARGET, 0, 0, null);
-                                    Object parentId = table.addItem(new Object[] {link, null, pkg.desc, null}, null);
-                                    
-                                    // add artifacts to table
-                                    for (BintrayArtifact f: pkg.files)
-                                    {
-                                        href = BINTRAY_CONTENT_ROOT + f.path; 
-                                        link = new Link(f.name, new ExternalResource(href), "_self", 0, 0, null);
-                                        Object id = table.addItem(new Object[] {link, f.version, f.desc, f.author}, f.name);
-                                        table.setParent(id, parentId);
-                                        table.setChildrenAllowed(id, false);
-                                    }
-                                    
-                                    getUI().push();
-                                    
-                                    // also load info from POM in separate thread
-                                    exec.execute(new Runnable()
-                                    {
-                                        public void run()
-                                        {
-                                            try
-                                            {
-                                                for (final BintrayArtifact f: pkg.files)
-                                                {
-                                                    String pomUrl = BINTRAY_CONTENT_ROOT + f.path.replaceAll(".jar", ".pom");
-                                                    readInfoFromPom(pomUrl, f);
-                                                    
-                                                    getUI().access(new Runnable() {
-                                                        public void run()
-                                                        {
-                                                            Item item = table.getItem(f.name);
-                                                            item.getItemProperty(ModuleTypeSelectionPopup.PROP_DESC).setValue(f.desc);
-                                                            item.getItemProperty(ModuleTypeSelectionPopup.PROP_AUTHOR).setValue(f.author);
-                                                            getUI().push();
-                                                        }
-                                                    });                                                    
-                                                }
-                                            }
-                                            catch (Exception e)
-                                            {
-                                                
-                                            }
-                                        }
-                                    }); 
+                                    String fName = it.next().name;
+                                    if (!fName.endsWith("jar") || fName.endsWith("-sources.jar") || fName.endsWith("-javadoc.jar"))
+                                        it.remove();
                                 }
-                            });
+                                
+                                // add package info in table
+                                updateTable(pkg, layout);
+                            }
                         }
                         catch (Exception e)
                         {
-                            getUI().access(new Runnable() {
-                                public void run()
-                                {
-                                    table.addItem(new Object[] {null, "Error loading package " + pkgName, null, null}, null); 
-                                    getUI().push();
-                                }
-                            });
+                            AdminUIModule.getInstance().getLogger().error("Cannot load package info for " + pkgName, e);
                         }
                     }
                     
                     // remove loading indicator when done
                     getUI().access(new Runnable() {
+                        @Override
                         public void run()
                         {
                             layout.removeComponent(loading);
@@ -227,13 +160,16 @@ public class DownloadModulesPopup extends Window
                         }
                     });
                 }
-                catch (Exception e)
+                catch (final Exception e)
                 {
-                    getUI().access(new Runnable() {
+                    final UI ui = getUI();
+                    ui.access(new Runnable() {
+                        @Override
                         public void run()
                         {
-                            Notification.show("Error", "Cannot fetch OSH package list", Notification.Type.ERROR_MESSAGE);
-                            getUI().push();
+                            DisplayUtils.showErrorPopup("Cannot fetch OSH package list", e);
+                            DownloadModulesPopup.this.close();
+                            ui.push();
                         }
                     });
                 }
@@ -242,9 +178,79 @@ public class DownloadModulesPopup extends Window
     }
     
     
-    protected Collection<String> getBintrayPackageNames() throws Exception
+    protected void updateTable(final BintrayPackage pkg, final VerticalLayout layout)
     {
-        // get OSH package names
+        // update table in UI thread
+        getUI().access(new Runnable() {
+            @Override
+            public void run()
+            {
+                // create table if not there yet
+                if (table == null)
+                {
+                    setWidth(70, Unit.PERCENTAGE);
+                    table = new TreeTable();
+                    table.setSizeFull();      
+                    table.setSelectable(false);
+                    table.addContainerProperty(ModuleTypeSelectionPopup.PROP_NAME, Component.class, null);
+                    table.addContainerProperty(ModuleTypeSelectionPopup.PROP_VERSION, String.class, null);
+                    table.addContainerProperty(ModuleTypeSelectionPopup.PROP_DESC, String.class, null);
+                    table.addContainerProperty(ModuleTypeSelectionPopup.PROP_AUTHOR, String.class, null);
+                    table.setColumnHeaders(new String[] {"Package", "OSH Version", "Description", "Author"});
+                    table.setColumnWidth(ModuleTypeSelectionPopup.PROP_NAME, 300);
+                    table.setColumnExpandRatio(ModuleTypeSelectionPopup.PROP_DESC, 10);
+                    layout.addComponent(table, 0);
+                }
+                
+                // add package info
+                String href = BINTRAY_WEB_ROOT + pkg.name; 
+                Link link = new Link(pkg.name, new ExternalResource(href), LINK_TARGET, 0, 0, null);
+                Object parentId = table.addItem(new Object[] {link, null, pkg.desc, null}, null);
+                
+                // add artifacts to table
+                for (BintrayArtifact f: pkg.files)
+                {
+                    href = BINTRAY_CONTENT_ROOT + f.path; 
+                    link = new Link(f.name, new ExternalResource(href), "_self", 0, 0, null);
+                    Object id = table.addItem(new Object[] {link, f.version, f.desc, f.author}, f.name);
+                    table.setParent(id, parentId);
+                    table.setChildrenAllowed(id, false);
+                }
+                
+                getUI().push();
+                
+                // also load info from POM in separate thread
+                exec.execute(new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        for (final BintrayArtifact f: pkg.files)
+                        {
+                            String pomUrl = BINTRAY_CONTENT_ROOT + f.path.replaceAll(".jar", ".pom");
+                            readInfoFromPom(pomUrl, f);
+                            
+                            getUI().access(new Runnable() {
+                                @Override
+                                public void run()
+                                {
+                                    Item item = table.getItem(f.name);
+                                    item.getItemProperty(ModuleTypeSelectionPopup.PROP_DESC).setValue(f.desc);
+                                    item.getItemProperty(ModuleTypeSelectionPopup.PROP_AUTHOR).setValue(f.author);
+                                    getUI().push();
+                                }
+                            });                                                    
+                        }
+                    }
+                }); 
+            }
+        });
+    }
+    
+    
+    protected Collection<String> getBintrayPackageNames() throws IOException
+    {
+     // get OSH package names
         ArrayList<String> pkgNames = new ArrayList<String>();
         URL url = new URL(BINTRAY_API_ROOT + BINTRAY_PKG_LIST);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream())))
@@ -266,7 +272,7 @@ public class DownloadModulesPopup extends Window
     }
     
     
-    protected BintrayPackage getBintrayPackageInfo(String pkgName) throws Exception
+    protected BintrayPackage getBintrayPackageInfo(String pkgName) throws IOException
     {
         URL url = new URL(BINTRAY_API_ROOT + BINTRAY_PKG + pkgName);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream())))
@@ -277,7 +283,7 @@ public class DownloadModulesPopup extends Window
     }
     
     
-    protected Collection<BintrayArtifact> getBintrayPackageFiles(String pkgName) throws Exception
+    protected Collection<BintrayArtifact> getBintrayPackageFiles(String pkgName) throws IOException
     {
         final Collection<BintrayArtifact> files;
         
@@ -293,7 +299,7 @@ public class DownloadModulesPopup extends Window
     }
     
     
-    protected void readInfoFromPom(String url, BintrayArtifact item) throws Exception
+    protected void readInfoFromPom(String url, BintrayArtifact item)
     {
         try
         {
@@ -307,7 +313,7 @@ public class DownloadModulesPopup extends Window
         }
         catch (Exception e)
         {
-            System.err.println("Error while reading POM at " + url);
+            AdminUIModule.getInstance().getLogger().error("Cannot read POM at " + url, e);
         }
     }
     

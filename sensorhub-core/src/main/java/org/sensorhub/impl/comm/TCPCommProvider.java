@@ -82,7 +82,7 @@ public class TCPCommProvider extends AbstractModule<TCPCommProviderConfig> imple
         catch (IOException e)
         {
             throw new SensorHubException("Cannot connect to remote host "
-                                         + config.remoteHost + ":" + config.remotePort + " via TCP");
+                                         + config.remoteHost + ":" + config.remotePort + " via TCP", e);
         }
     }
 
@@ -90,8 +90,14 @@ public class TCPCommProvider extends AbstractModule<TCPCommProviderConfig> imple
     @Override
     public void stop() throws SensorHubException
     {
-        try { socket.close(); }
-        catch (IOException e) { }        
+        try
+        {
+            socket.close();
+        }
+        catch (IOException e)
+        {
+            log.trace("Cannot close socket", e);
+        }        
     }
 
 

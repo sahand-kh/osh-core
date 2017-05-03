@@ -24,18 +24,16 @@ import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
 
+@SuppressWarnings("serial")
 public class ValueEntryPopup extends Window
 {
-    private static final long serialVersionUID = 9099071384769283253L;
-
-
+    
     protected interface ValueCallback
     {
         public void newValue(Object value);
     }
     
     
-    @SuppressWarnings("serial")
     public ValueEntryPopup(int width, final ValueCallback callback, final Collection<?> possibleValues)
     {
         super("Enter New Value");

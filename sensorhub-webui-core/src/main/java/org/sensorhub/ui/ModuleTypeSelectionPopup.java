@@ -26,7 +26,6 @@ import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.ui.api.UIConstants;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Notification;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
@@ -43,9 +42,9 @@ import com.vaadin.ui.HorizontalLayout;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 24, 2017
  */
+@SuppressWarnings("serial")
 public class ModuleTypeSelectionPopup extends Window implements UIConstants
 {
-    private static final long serialVersionUID = -5368554789542357015L;
     static final String PROP_NAME = "name";
     static final String PROP_VERSION = "version";
     static final String PROP_DESC = "desc";
@@ -167,12 +166,12 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
                 }
                 catch (NoClassDefFoundError e)
                 {
-                    AdminUI.showDependencyError(provider.getClass());
+                    DisplayUtils.showDependencyError(provider.getClass(), e);
                     return;
                 }
                 catch (SensorHubException e)
                 {
-                    Notification.show(e.getMessage(), null, Notification.Type.ERROR_MESSAGE);
+                    DisplayUtils.showErrorPopup("Cannot add new module", e);
                 }
             }
         });

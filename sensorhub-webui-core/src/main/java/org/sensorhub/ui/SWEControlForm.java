@@ -35,11 +35,11 @@ import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
 
 
+@SuppressWarnings("serial")
 public class SWEControlForm extends SWECommonForm
 {
-    private static final long serialVersionUID = 8835479871996989533L;
-    ISensorControlInterface controlInput;
-    DataComponent command;
+    transient ISensorControlInterface controlInput;
+    transient DataComponent command;
     
     
     public SWEControlForm(final ISensorControlInterface controlInput)
@@ -75,7 +75,7 @@ public class SWEControlForm extends SWECommonForm
                 }
                 catch (SensorException e)
                 {
-                    AdminUI.displayErrorPopup("Error while sending command to sensor");
+                    DisplayUtils.showErrorPopup("Error while sending command to sensor", e);
                 }
             }
         });

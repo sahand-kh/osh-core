@@ -61,6 +61,7 @@ public class NetworkManagerImpl implements INetworkManager
     }
     
     
+    @Override
     public Collection<ICommNetwork<?>> getLoadedModules(NetworkType netType)
     {
         ArrayList<ICommNetwork<?>> netModules = new ArrayList<ICommNetwork<?>>();
@@ -89,22 +90,7 @@ public class NetworkManagerImpl implements INetworkManager
     @Override
     public Collection<ModuleConfig> getAvailableModules()
     {
-        ArrayList<ModuleConfig> configuredSensors = new ArrayList<ModuleConfig>();
-        
-        // retrieve all modules implementing ISensorInterface
-        for (ModuleConfig config: moduleRegistry.getAvailableModules())
-        {
-            try
-            {
-                if (ICommNetwork.class.isAssignableFrom(Class.forName(config.moduleClass)))
-                    configuredSensors.add(config);
-            }
-            catch (Exception e)
-            {
-            }
-        }
-        
-        return configuredSensors;
+        return moduleRegistry.getAvailableModules(ICommNetwork.class);
     }
 
 

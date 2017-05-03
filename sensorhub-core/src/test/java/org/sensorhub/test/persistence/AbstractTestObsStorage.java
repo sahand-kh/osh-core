@@ -137,7 +137,9 @@ public abstract class AbstractTestObsStorage<StorageType extends IObsStorageModu
             
         FoiFilter filter = new FoiFilter()
         {
+            @Override
             public Collection<String> getFeatureIDs() { return idList; };
+            @Override
             public Collection<String> getProducerIDs() {return producerFilterList; };
         };
         
@@ -186,7 +188,9 @@ public abstract class AbstractTestObsStorage<StorageType extends IObsStorageModu
         final Polygon poly = (Polygon)new GeometryFactory().toGeometry(bbox.toJtsEnvelope());
         FoiFilter filter = new FoiFilter()
         {
+            @Override
             public Polygon getRoi() { return poly; };
+            @Override
             public Collection<String> getProducerIDs() {return producerFilterList; };
         };
         
@@ -245,7 +249,9 @@ public abstract class AbstractTestObsStorage<StorageType extends IObsStorageModu
         
         // generate filter
         IObsFilter filter = new ObsFilter(recordDef.getName()) {
+            @Override
             public Set<String> getFoiIDs() { return foiSet; }
+            @Override
             public Collection<String> getProducerIDs() {return producerFilterList; };
         };
         
@@ -305,7 +311,9 @@ public abstract class AbstractTestObsStorage<StorageType extends IObsStorageModu
         
         // generate filter
         IObsFilter filter = new ObsFilter(recordDef.getName()) {
+            @Override
             public Polygon getRoi() { return roi; }
+            @Override
             public Collection<String> getProducerIDs() {return producerFilterList; };
         };
         
@@ -321,8 +329,11 @@ public abstract class AbstractTestObsStorage<StorageType extends IObsStorageModu
         
         // generate filter
         IObsFilter filter = new ObsFilter(recordDef.getName()) {
+            @Override
             public double[] getTimeStampRange() { return timeRange; }
+            @Override
             public Set<String> getFoiIDs() { return foiSet; }
+            @Override
             public Collection<String> getProducerIDs() {return producerFilterList; };
         };
         

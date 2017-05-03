@@ -27,18 +27,18 @@ import com.vaadin.data.util.AbstractInMemoryContainer;
 @SuppressWarnings("serial")
 public class MyBeanItemContainer<BeanType> extends AbstractInMemoryContainer<Object, Object, MyBeanItem<BeanType>>
 {
-    final Map<Object, MyBeanItem<BeanType>> itemIdToItem = new HashMap<Object, MyBeanItem<BeanType>>();
+    final transient Map<Object, MyBeanItem<BeanType>> itemIdToItem = new HashMap<Object, MyBeanItem<BeanType>>();
     final MyBeanItem<BeanType> templateItem;
     final Class<? extends BeanType> actualBeanType;
     
     
-    public MyBeanItemContainer(Class<BeanType> beanType) throws IllegalArgumentException
+    public MyBeanItemContainer(Class<BeanType> beanType)
     {
         this((Collection<?>)null, beanType, MyBeanItem.NO_PREFIX);
     }
     
     
-    public MyBeanItemContainer(Collection<?> beanCollection, Class<? extends BeanType> beanType, String prefix) throws IllegalArgumentException
+    public MyBeanItemContainer(Collection<?> beanCollection, Class<? extends BeanType> beanType, String prefix)
     {
         try
         {
@@ -57,12 +57,12 @@ public class MyBeanItemContainer<BeanType> extends AbstractInMemoryContainer<Obj
         }
         catch (Exception e)
         {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
     
     
-    public MyBeanItemContainer(Map<String, ?> beanMap, Class<? extends BeanType> beanType, String prefix) throws IllegalArgumentException
+    public MyBeanItemContainer(Map<String, ?> beanMap, Class<? extends BeanType> beanType, String prefix)
     {
         try
         {
@@ -81,7 +81,7 @@ public class MyBeanItemContainer<BeanType> extends AbstractInMemoryContainer<Obj
         }
         catch (Exception e)
         {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
     

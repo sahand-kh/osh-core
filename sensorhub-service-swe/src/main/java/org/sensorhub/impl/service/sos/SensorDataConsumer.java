@@ -18,6 +18,7 @@ import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.sensorhub.api.common.SensorHubException;
@@ -57,21 +58,28 @@ public class SensorDataConsumer implements ISOSDataConsumer
     
     
     @Override
-    public void updateSensor(AbstractProcess newSensorDescription) throws Exception
+    public void updateSensor(AbstractProcess newSensorDescription) throws IOException
     {
         TransactionUtils.updateSensorDescription(sensor, newSensorDescription);
     }
 
 
     @Override
-    public void newObservation(IObservation... observations) throws Exception
+    public void newObservation(IObservation... observations) throws IOException
     {
-        sensor.newObservation(observations);
+        try
+        {
+            sensor.newObservation(observations);
+        }
+        catch (SensorException e)
+        {
+            throw new IOException("Cannot ingest new observation", e);
+        }
     }
 
 
     @Override
-    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws Exception
+    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws IOException
     {
         DataStructureHash templateHashObj = new DataStructureHash(component, encoding);
         String templateID = structureToTemplateIdMap.get(templateHashObj);
@@ -95,7 +103,7 @@ public class SensorDataConsumer implements ISOSDataConsumer
         }
         catch (SensorException e)
         {
-            throw new SOSException(SOSException.invalid_param_code, "ResultTemplate", null, e.getMessage());
+            throw new SOSException(SOSException.invalid_param_code, "ResultTemplate", e);
         }
         
         return templateID;
@@ -103,15 +111,22 @@ public class SensorDataConsumer implements ISOSDataConsumer
 
 
     @Override
-    public void newResultRecord(String templateID, DataBlock... dataBlocks) throws Exception
+    public void newResultRecord(String templateID, DataBlock... dataBlocks) throws IOException
     {
-        String outputName = getOutputNameFromTemplateID(templateID);
-        sensor.newResultRecord(outputName, dataBlocks);
+        try
+        {
+            String outputName = getOutputNameFromTemplateID(templateID);
+            sensor.newResultRecord(outputName, dataBlocks);
+        }
+        catch (SensorException e)
+        {
+            throw new IOException("Cannot ingest new data record", e);
+        }
     }
 
 
     @Override
-    public Template getTemplate(String templateID) throws Exception
+    public Template getTemplate(String templateID) throws IOException
     {
         for (ISensorDataInterface output: sensor.getAllOutputs().values())
         {

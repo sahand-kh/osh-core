@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sos;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -28,7 +29,6 @@ import org.sensorhub.api.persistence.IObsFilter;
 import org.sensorhub.api.persistence.IRecordStoreInfo;
 import org.sensorhub.api.persistence.ObsFilter;
 import org.sensorhub.api.persistence.ObsKey;
-import org.sensorhub.api.sensor.SensorException;
 import org.vast.data.DataIterator;
 import org.vast.ogc.def.DefinitionRef;
 import org.vast.ogc.gml.FeatureRef;
@@ -73,7 +73,7 @@ public class StorageDataProvider implements ISOSDataProvider
     }
     
     
-    public StorageDataProvider(IBasicStorage storage, StorageDataProviderConfig config, final SOSDataFilter filter) throws Exception
+    public StorageDataProvider(IBasicStorage storage, StorageDataProviderConfig config, final SOSDataFilter filter) throws IOException
     {
         this.storage = storage;
         this.dataStoresStates = new ArrayList<StorageState>();
@@ -137,7 +137,7 @@ public class StorageDataProvider implements ISOSDataProvider
     
     
     @Override
-    public IObservation getNextObservation() throws Exception
+    public IObservation getNextObservation() throws IOException
     {
         DataComponent result = getNextComponent();
         if (result == null)
@@ -189,7 +189,7 @@ public class StorageDataProvider implements ISOSDataProvider
     }
     
     
-    private DataComponent getNextComponent() throws SensorException
+    private DataComponent getNextComponent() throws IOException
     {
         DataBlock data = getNextResultRecord();
         if (data == null)
@@ -202,7 +202,7 @@ public class StorageDataProvider implements ISOSDataProvider
     
 
     @Override
-    public DataBlock getNextResultRecord()
+    public DataBlock getNextResultRecord() throws IOException
     {
         double nextStorageTime = Double.POSITIVE_INFINITY;
         int nextStorageIndex = -1;
@@ -267,7 +267,7 @@ public class StorageDataProvider implements ISOSDataProvider
     
 
     @Override
-    public DataComponent getResultStructure()
+    public DataComponent getResultStructure() throws IOException
     {
         // TODO generate choice if request includes several outputs
         
@@ -276,7 +276,7 @@ public class StorageDataProvider implements ISOSDataProvider
     
 
     @Override
-    public DataEncoding getDefaultResultEncoding()
+    public DataEncoding getDefaultResultEncoding() throws IOException
     {
         return dataStoresStates.get(0).recordInfo.getRecommendedEncoding();
     }

@@ -260,6 +260,7 @@ public class SensorHub
             // register shutdown hook for a clean stop 
             final SensorHub sh = instance;
             Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
                 public void run()
                 {
                     sh.stop();                    

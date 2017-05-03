@@ -28,7 +28,6 @@ import org.vast.ogc.gml.FeatureRef;
 
 public class SWETransactionalSensorOutput extends AbstractSensorOutput<SWETransactionalSensor>
 {
-    SWETransactionalSensor parentSensor;
     DataComponent recordStructure;
     DataEncoding recordEncoding;
     double avgSamplingPeriod = 100;
@@ -95,8 +94,9 @@ public class SWETransactionalSensorOutput extends AbstractSensorOutput<SWETransa
                     foi = ((FeatureRef) foi).getTarget();
                     e = new FoiEvent(now, getParentModule(), foi, now/1000.0);
                 }
-                catch (Exception e1)
+                catch (Exception ex)
                 {
+                    parentSensor.getLogger().trace("Cannot fetch feature object", ex);
                     e = new FoiEvent(now, getParentModule(), ((FeatureRef) foi).getHref(), now/1000.0);
                 }                    
             }

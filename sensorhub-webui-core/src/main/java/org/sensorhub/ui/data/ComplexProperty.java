@@ -20,7 +20,7 @@ import java.lang.reflect.Field;
 @SuppressWarnings("serial")
 public class ComplexProperty extends BaseProperty<MyBeanItem<Object>>
 {
-    Object parentObj;
+    transient Object parentObj;
     MyBeanItem<Object> item;
     
 
@@ -40,7 +40,7 @@ public class ComplexProperty extends BaseProperty<MyBeanItem<Object>>
 
 
     @Override
-    public void setValue(MyBeanItem<Object> newValue) throws ReadOnlyException
+    public void setValue(MyBeanItem<Object> newValue)
     {
         try
         {
@@ -53,7 +53,7 @@ public class ComplexProperty extends BaseProperty<MyBeanItem<Object>>
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Cannot set object field " + f.getName());
+            throw new IllegalStateException(e);
         }
         
     }

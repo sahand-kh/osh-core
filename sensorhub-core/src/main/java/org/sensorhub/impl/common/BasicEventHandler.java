@@ -57,7 +57,7 @@ public class BasicEventHandler implements IEventHandler
     @Override
     public synchronized void registerListener(IEventListener listener)
     {
-        if (!listeners.contains(listener))
+        if (!hasWeakRef(listener))
         {
             // add directly or through temporary list if publishing
             if (!inPublish)
@@ -140,6 +140,19 @@ public class BasicEventHandler implements IEventHandler
     private final void addWeakRef(IEventListener listener)
     {
         listeners.add(new WeakReference<IEventListener>(listener));
+    }
+    
+    
+    private final boolean hasWeakRef(IEventListener listenerToFind)
+    {
+        for (Iterator<WeakReference<IEventListener>> it = listeners.iterator(); it.hasNext(); )
+        {
+            IEventListener listener = it.next().get();
+            if (listener == listenerToFind)
+                return true;
+        }
+        
+        return false;
     }
     
     

@@ -65,7 +65,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
 
 
     @Override
-    public SOSOfferingCapabilities generateCapabilities() throws ServiceException
+    public SOSOfferingCapabilities generateCapabilities() throws SensorHubException
     {
         SOSOfferingCapabilities capabilities;
         
@@ -105,7 +105,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
     
     
     @Override
-    public void updateCapabilities() throws ServiceException
+    public void updateCapabilities() throws SensorHubException
     {
         if (caps == null)
             return;
@@ -129,7 +129,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
 
 
     @Override
-    public Iterator<AbstractFeature> getFoiIterator(IFoiFilter filter) throws Exception
+    public Iterator<AbstractFeature> getFoiIterator(IFoiFilter filter) throws SensorHubException
     {
         Iterator<AbstractFeature> foiIt = super.getFoiIterator(filter);
         if (!foiIt.hasNext())
@@ -181,7 +181,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
     
     
     @Override
-    protected void checkEnabled() throws ServiceException
+    protected void checkEnabled() throws SensorHubException
     {
         if (!config.enabled)
             throw new ServiceException("Offering " + config.offeringID + " is disabled");

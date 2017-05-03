@@ -123,7 +123,7 @@ public class SOSClient
         }
         catch (Exception e)
         {
-            throw new SensorHubException("Cannot fetch SensorML description for sensor " + sensorUID);
+            throw new SensorHubException("Cannot fetch SensorML description for sensor " + sensorUID, e);
         }
     }
 
@@ -180,8 +180,15 @@ public class SOSClient
                 }
                 finally
                 {
-                    try { parser.close(); }
-                    catch (IOException e) { }
+                    try
+                    {
+                        parser.close();
+                    }
+                    catch (IOException e)
+                    {
+                        log.trace("Cannot close SOS connection", e);
+                    }
+                    
                     started = false;
                 }
             }
@@ -222,7 +229,7 @@ public class SOSClient
                 }
                 catch (IOException e)
                 {
-                    log.error("Error while parsing websocket packet");
+                    log.error("Error while parsing websocket packet", e);
                 }
             }
 
@@ -259,13 +266,16 @@ public class SOSClient
     {
         started = false;
         
-        try
+        if (wsClient != null)
         {
-            if (wsClient != null)
+            try
+            {
                 wsClient.stop();
-        }
-        catch (Exception e)
-        {
+            }
+            catch (Exception e)
+            {
+                log.trace("Cannot close websocket client", e);
+            }
         }
     }
 

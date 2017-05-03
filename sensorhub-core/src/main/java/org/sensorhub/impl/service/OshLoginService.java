@@ -41,6 +41,7 @@ public class OshLoginService implements LoginService
             _roleName=name;
         }
         
+        @Override
         public String getName()
         {
             return _roleName;
@@ -102,6 +103,7 @@ public class OshLoginService implements LoginService
     protected UserIdentity createUserIdentity(final IUserInfo user, Object credential)
     {
         Principal principal = new Principal() {
+            @Override
             public String getName()
             {
                 return user.getId();

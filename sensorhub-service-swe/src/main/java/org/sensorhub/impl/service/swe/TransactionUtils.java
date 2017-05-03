@@ -14,6 +14,7 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.swe;
 
+import java.io.IOException;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.sensor.ISensorModule;
@@ -35,7 +36,7 @@ public class TransactionUtils
     /*
      * Create a new SWETransactionalSensor module for handling incoming data
      */
-    public static IModule<?> createSensorModule(String sensorUID, AbstractProcess sensorDesc) throws SensorHubException
+    public static IModule<?> createSensorModule(String sensorUID, AbstractProcess sensorDesc) throws IOException
     {
         // create virtual sensor module if needed
         try
@@ -60,7 +61,7 @@ public class TransactionUtils
         }
         catch (SensorHubException e)
         {
-            throw new SensorHubException("Could not register sensor " + sensorUID);
+            throw new IOException("Cannot register sensor " + sensorUID, e);
         }        
     }
     
@@ -89,7 +90,7 @@ public class TransactionUtils
     /*
      * Checks that SensorML description contains proper info
      */
-    public static void checkSensorML(AbstractProcess smlProcess, OWSExceptionReport report) throws Exception
+    public static void checkSensorML(AbstractProcess smlProcess, OWSExceptionReport report) throws OWSException
     {
         String sensorUID = smlProcess.getUniqueIdentifier();
         

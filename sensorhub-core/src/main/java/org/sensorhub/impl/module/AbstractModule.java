@@ -119,8 +119,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         }
         catch (Exception e)
         {
-            reportError("Error while updating module configuration", e);
-            throw e;
+            reportError(CANNOT_UPDATE_MSG, e);
         }
         
         // force re-init
@@ -181,7 +180,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 }
                 catch (SensorHubException e)
                 {
-                    getLogger().error("Error during delayed start");
+                    getLogger().error("Error during delayed start", e);
                 }
             }
         }
@@ -383,11 +382,10 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 init(config);
                 setState(ModuleState.INITIALIZED);
             }
-            catch (Throwable e)
+            catch (Exception e)
             {
-                reportError("Error while initializing module", e);
+                reportError(CANNOT_INIT_MSG, e);
                 setState(ModuleState.LOADED);
-                throw e;
             }
         }
     }
@@ -413,7 +411,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         {
             // error if we were never initialized
             if (state == ModuleState.LOADED)
-                throw new SensorHubException("Module must be initialized");
+                throw new SensorHubException("Module must first be initialized");
             
             // do nothing if we're already started or starting
             if (state == ModuleState.STARTED || state == ModuleState.STARTING)
@@ -448,11 +446,10 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 start();
                 setState(ModuleState.STARTED);
             }
-            catch (Throwable e)
+            catch (Exception e)
             {
-                reportError("Error while starting module", e);
+                reportError(CANNOT_START_MSG, e);
                 requestStop();
-                throw e;
             }
         }
     }
@@ -494,10 +491,9 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 else
                     setState(ModuleState.STOPPED);
             }
-            catch (Throwable e)
+            catch (Exception e)
             {
-                reportError("Error while stopping module", e);
-                throw e;
+                reportError(CANNOT_STOP_MSG, e);
             }
         }
     }
@@ -552,7 +548,8 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         {
             // first create logger object
             String localID = getLocalID();
-            String loggerId = Integer.toHexString(Math.abs(localID.hashCode()));
+            String loggerId = Integer.toHexString(localID.hashCode());
+            loggerId.replaceAll("-", ""); // remove minus sign if any
             logger = LoggerFactory.getLogger(this.getClass().getCanonicalName() + ":" + loggerId);
         
             // also configure logger to append to log file in module folder

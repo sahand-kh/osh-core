@@ -85,9 +85,9 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
     
     IRecordStorageModule<StorageConfig> storage;
     WeakReference<IDataProducer> dataSourceRef;
-    Map<String, ScalarIndexer> timeStampIndexers = new HashMap<String, ScalarIndexer>();
-    Map<String, String> currentFoiMap = new HashMap<String, String>(); // entity ID -> current FOI ID
-    Set<String> registeredProducers = new HashSet<String>();
+    Map<String, ScalarIndexer> timeStampIndexers = new HashMap<>();
+    Map<String, String> currentFoiMap = new HashMap<>(); // entity ID -> current FOI ID
+    Set<String> registeredProducers = new HashSet<>();
     long lastCommitTime = Long.MIN_VALUE;
     Timer autoPurgeTimer;
     
@@ -105,7 +105,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
             storageConfig = (StorageConfig)config.storageConfig.clone();
             storageConfig.id = getLocalID();
             storageConfig.name = getName();
-            Class<?> clazz = (Class<?>)Class.forName(storageConfig.moduleClass);
+            Class<?> clazz = Class.forName(storageConfig.moduleClass);
             storage = (IRecordStorageModule<StorageConfig>)clazz.newInstance();
             storage.init(storageConfig);
             storage.start();
@@ -131,7 +131,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         
         // retrieve reference to data source
         ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
-        dataSourceRef = (WeakReference<IDataProducer>)moduleReg.getModuleRef(config.dataSourceID);
+        dataSourceRef = moduleReg.getModuleRef(config.dataSourceID);
         
         // register to receive data source events
         IDataProducer dataSource = dataSourceRef.get();
@@ -158,7 +158,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         else
         {
             int numOutputs = config.selectedOutputs.length;
-            List <IStreamingDataInterface> selectedOutputs = new ArrayList<IStreamingDataInterface>(numOutputs);
+            List <IStreamingDataInterface> selectedOutputs = new ArrayList<>(numOutputs);
             for (String outputName: config.selectedOutputs)
                 selectedOutputs.add(dataSource.getAllOutputs().get(outputName));
             return selectedOutputs;
@@ -561,6 +561,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
     }
 
 
+    @Override
     public DataBlock getDataBlock(DataKey key)
     {
         checkStarted();
@@ -680,7 +681,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         if (storage instanceof IObsStorage)
             return ((IObsStorage) storage).getFoiIDs(filter);
         
-        return Collections.EMPTY_LIST.iterator();
+        return Collections.emptyIterator();
     }
 
 
@@ -692,7 +693,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         if (storage instanceof IObsStorage)
             return ((IObsStorage) storage).getFois(filter);
         
-        return Collections.EMPTY_LIST.iterator();
+        return Collections.emptyIterator();
     }
 
 
@@ -708,7 +709,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
     private void checkStarted()
     {
         if (storage == null)
-            throw new RuntimeException("Storage is disabled");
+            throw new IllegalStateException("Storage is disabled");
     }
 
 

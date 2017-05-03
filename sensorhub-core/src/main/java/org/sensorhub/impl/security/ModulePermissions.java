@@ -14,7 +14,6 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.security;
 
-import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.security.IPermission;
 import org.sensorhub.impl.SensorHub;
@@ -52,7 +51,7 @@ public class ModulePermissions extends AbstractPermission
     
     public ModulePermissions(String moduleIdString)
     {
-        super(null, moduleIdString);
+        this.name = moduleIdString;
         
         // extract module type alias and module ID
         int qualifierIndex = moduleIdString.indexOf('[');
@@ -72,15 +71,11 @@ public class ModulePermissions extends AbstractPermission
         else
         {
             // generate label 
-            try
-            {
-                IModule<?> module = SensorHub.getInstance().getModuleRegistry().getModuleById(moduleID);
+            IModule<?> module = SensorHub.getInstance().getModuleRegistry().getLoadedModuleById(moduleID);
+            if (module != null)
                 this.label = module.getName() + " [" + getName() + "]";
-            }
-            catch (SensorHubException e)
-            {
+            else
                 this.label = "Unknown Module - " + moduleIdString;
-            }
         }      
     }
 

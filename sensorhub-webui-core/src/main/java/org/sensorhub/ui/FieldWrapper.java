@@ -20,9 +20,9 @@ import com.vaadin.ui.CustomField;
 import com.vaadin.ui.Field;
 
 
+@SuppressWarnings("serial")
 public abstract class FieldWrapper<T extends Object> extends CustomField<T>
 {
-    private static final long serialVersionUID = 4400545338126007506L;
     Field<T> innerField;
     
     

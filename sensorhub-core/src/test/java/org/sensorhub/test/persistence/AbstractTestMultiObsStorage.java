@@ -218,6 +218,7 @@ public abstract class AbstractTestMultiObsStorage<StorageType extends IObsStorag
     }
     
     
+    @Override
     @Test
     public void testGetFoiExtent() throws Exception
     {

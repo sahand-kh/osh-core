@@ -24,14 +24,12 @@ import org.sensorhub.ui.api.IModuleAdminPanel;
 import org.sensorhub.ui.api.IModuleConfigForm;
 import org.sensorhub.ui.api.UIConstants;
 import org.sensorhub.ui.data.MyBeanItem;
-import com.vaadin.server.Page;
 import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
-import com.vaadin.ui.Notification;
 import com.vaadin.ui.VerticalLayout;
 
 
@@ -45,16 +43,15 @@ import com.vaadin.ui.VerticalLayout;
  * @param <ModuleType> Type of module supported by this panel builder
  * @since 0.5
  */
+@SuppressWarnings("serial")
 public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfig>> extends VerticalLayout implements IModuleAdminPanel<ModuleType>, UIConstants, IEventListener
 {
-    private static final long serialVersionUID = -3391035886386668911L;
-    ModuleType module;
+    transient ModuleType module;
     Button statusBtn;
     Button errorBtn;
     
     
     @Override
-    @SuppressWarnings("serial")
     public void build(final MyBeanItem<ModuleConfig> beanItem, final ModuleType module)
     {
         this.module = module;
@@ -96,7 +93,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
         addComponent(applyButton);
         
         // config forms
-        final IModuleConfigForm form = getConfigForm(beanItem, module);
+        final IModuleConfigForm form = getConfigForm(beanItem);
         addComponent(new TabbedConfigForms(form));
         
         // apply button action
@@ -115,10 +112,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                 }
                 catch (Exception e)
                 {
-                    String msg = "Error while updating module configuration";
-                    Page page = DefaultModulePanel.this.getUI().getPage();
-                    new Notification("Error", msg + '\n' + e.getMessage(), Notification.Type.ERROR_MESSAGE).show(page);
-                    AdminUIModule.log.error(msg, e);
+                    DisplayUtils.showErrorPopup(IModule.CANNOT_UPDATE_MSG, e);
                 }
             }
         });
@@ -153,7 +147,6 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
     }
     
     
-    @SuppressWarnings("serial")
     protected void refreshErrorMessage()
     {
         final Throwable errorObj = module.getCurrentError();
@@ -178,9 +171,10 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
             
             // show error details on button click
             errorBtn.addClickListener(new ClickListener() {
+                @Override
                 public void buttonClick(ClickEvent event)
                 {
-                    AdminUI.displayErrorDetailsPopup(module, errorObj);
+                    DisplayUtils.showErrorDetails(module, errorObj);
                 }
             });
             
@@ -200,10 +194,9 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
     }
     
     
-    protected IModuleConfigForm getConfigForm(MyBeanItem<ModuleConfig> beanItem, ModuleType module)
+    protected IModuleConfigForm getConfigForm(MyBeanItem<ModuleConfig> beanItem)
     {
-        IModuleConfigForm form = AdminUIModule.getInstance().generateForm(beanItem.getBean().getClass());//module.getClass());
-        //form.build("Main Settings", null, beanItem);
+        IModuleConfigForm form = AdminUIModule.getInstance().generateForm(beanItem.getBean().getClass());
         form.build(GenericConfigForm.MAIN_CONFIG, "General module configuration", beanItem, false);
         return form;
     }
@@ -234,6 +227,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
             {
                 case STATUS:
                     getUI().access(new Runnable() {
+                        @Override
                         public void run()
                         {
                             refreshStatusMessage();
@@ -244,6 +238,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                     
                 case ERROR:
                     getUI().access(new Runnable() {
+                        @Override
                         public void run()
                         {
                             refreshErrorMessage();
@@ -254,6 +249,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                     
                 case STATE_CHANGED:
                     getUI().access(new Runnable() {
+                        @Override
                         public void run()
                         {
                             refreshStatusMessage();

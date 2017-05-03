@@ -95,7 +95,6 @@ public class SOSService extends AbstractModule<SOSServiceConfig> implements ISer
     {
         // deploy servlet
         servlet = new SOSServlet(config, (SOSSecurity)this.securityHandler, getLogger());
-        servlet.start();
         deploy();
         
         setState(ModuleState.STARTED);
@@ -167,7 +166,7 @@ public class SOSService extends AbstractModule<SOSServiceConfig> implements ISer
                 {
                     start();
                 }
-                catch (Throwable ex)
+                catch (Exception ex)
                 {
                     reportError("SOS Service could not start", ex);
                 }

@@ -19,9 +19,9 @@ import java.util.Map;
 import org.sensorhub.ui.data.BaseProperty;
 
 
+@SuppressWarnings("serial")
 public class SOSConfigForm extends GenericConfigForm
 {
-    private static final long serialVersionUID = -5570947777524310604L;
     protected static final String SOS_PACKAGE = "org.sensorhub.impl.service.sos.";
     protected static final String PROP_DATAPROVIDERS = "dataProviders";
     protected static final String PROP_DATACONSUMERS = "dataConsumers";
@@ -52,7 +52,7 @@ public class SOSConfigForm extends GenericConfigForm
             }
             catch (ClassNotFoundException e)
             {
-                e.printStackTrace();
+                AdminUIModule.getInstance().getLogger().error("Cannot find SOS provider class", e);
             }
             return classList;
         }

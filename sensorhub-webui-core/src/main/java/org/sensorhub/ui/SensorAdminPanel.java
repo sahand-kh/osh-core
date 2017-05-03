@@ -50,13 +50,12 @@ import com.vaadin.ui.VerticalLayout;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> implements IModuleAdminPanel<ISensorModule<?>>
 {
-    private static final long serialVersionUID = 9206002459600214988L;
     Panel obsPanel, statusPanel, commandsPanel;
     
     
-    @SuppressWarnings("serial")
     static class Spacing extends Label
     {
         public Spacing()
@@ -128,8 +127,8 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                 addComponent(titleBar);
                 
                 refreshButton.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
-                    TimerTask autoRefreshTask;
+                    transient TimerTask autoRefreshTask;                    
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         // toggle button state
@@ -140,6 +139,7 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                         {
                             autoRefreshTask = new TimerTask()
                             {
+                                @Override
                                 public void run()
                                 {
                                     final UI ui = SensorAdminPanel.this.getUI();
@@ -147,6 +147,7 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                                     if (ui != null)
                                     {
                                         ui.access(new Runnable() {
+                                            @Override
                                             public void run()
                                             {
                                                 rebuildOutputsPanels(module);

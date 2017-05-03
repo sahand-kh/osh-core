@@ -79,7 +79,7 @@ public class BboxPermission extends AbstractPermission implements IParameterized
         }
         catch (CloneNotSupportedException e)
         {
-            return null;
+            throw new IllegalStateException(e);
         }
     }
 

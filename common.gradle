@@ -46,6 +46,12 @@ subprojects {
   eclipse {
     classpath {
       downloadJavadoc = true
+      file.whenMerged { 
+        entries.each {
+          if (it.hasProperty('exported'))
+            it.exported = true
+        }
+      }
     }
   }
     

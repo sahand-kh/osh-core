@@ -29,6 +29,7 @@ import org.apache.muse.ws.notification.impl.Subscribe;
 import org.apache.muse.ws.notification.impl.SubscribeResponse;
 import org.apache.muse.ws.notification.remote.NotificationConsumerClient;
 import org.apache.muse.ws.resource.WsResource;
+import org.apache.muse.ws.resource.basefaults.BaseFault;
 import org.apache.muse.ws.resource.faults.ResourceUnknownFault;
 import org.apache.muse.ws.resource.impl.SimpleWsResource;
 import org.slf4j.Logger;
@@ -45,10 +46,9 @@ import org.w3c.dom.Element;
  */
 public class NotificationSystem
 {
-	public static int UNLIMITED_DURATION = -1;
-	
-	protected static String wsnUri = "http://docs.oasis-open.org/wsn/b-2";
-	protected static Logger log = LoggerFactory.getLogger(NotificationSystem.class);
+	public static final int UNLIMITED_DURATION = -1;	
+	protected static final String WSN_URI = "http://docs.oasis-open.org/wsn/b-2";
+	protected static final Logger log = LoggerFactory.getLogger(NotificationSystem.class);
 	
 	protected ISubscriptionDB subscriptionDB;
 	protected EndpointReference producerEPR;
@@ -114,15 +114,15 @@ public class NotificationSystem
 	 * If the service is using a SOAP binding, this method should be called with the content of the body element
 	 * @param requestElt
 	 * @return DOM element containing SubsribeResponse
-	 * @throws Exception
+	 * @throws BaseFault
 	 */
-	public synchronized Element subscribe(Element requestElt) throws Exception
+	public synchronized Element subscribe(Element requestElt) throws BaseFault
 	{
-		Subscribe request = new Subscribe(requestElt);				
-		Filter filter = request.getFilter();
-		EndpointReference consumer = request.getConsumerReference();
-		
-		if (consumer == null)
+	    Subscribe request = new Subscribe(requestElt);                
+        Filter filter = request.getFilter();
+        EndpointReference consumer = request.getConsumerReference();
+        
+        if (consumer == null)
             throw new NullPointerException("NullConsumerEPR");
         
         if (filter == null)
@@ -140,44 +140,44 @@ public class NotificationSystem
         
         long maxDate = System.currentTimeMillis() + maxSubscriptionLength*1000;
         if (maxSubscriptionLength == UNLIMITED_DURATION)
-        	newSub.setTerminationTime(request.getTerminationTime());
+            newSub.setTerminationTime(request.getTerminationTime());
         else if (request.getTerminationTime().getTime() < maxDate)
-        	newSub.setTerminationTime(request.getTerminationTime());
+            newSub.setTerminationTime(request.getTerminationTime());
         else
-        	newSub.setTerminationTime(new Date(maxDate));
+            newSub.setTerminationTime(new Date(maxDate));
         
         subscriptionDB.checkSubscription(newSub);
         subscriptionDB.put(newSub);
-        	
-		// create response
-		WsResource subRes = new SimpleWsResource();
-		subRes.setEndpointReference(newSub.getEndpoint());
-		SubscribeResponse response = new SubscribeResponse(subRes, newSub.getTerminationTime());
+            
+        // create response
+        WsResource subRes = new SimpleWsResource();
+        subRes.setEndpointReference(newSub.getEndpoint());
+        SubscribeResponse response = new SubscribeResponse(subRes, newSub.getTerminationTime());
 
-		return response.toXML();
+        return response.toXML();
 	}
 	
 	
-	public synchronized Element renew(String subUUID, Element requestElt) throws Exception
+	public synchronized Element renew(String subUUID, Element requestElt) throws BaseFault
 	{
 		// reset manager date
 		SubscriptionInfo sub = subscriptionDB.get(subUUID);
 		sub.terminationTime = new Date(System.currentTimeMillis() + maxSubscriptionLength*1000);
 		
 		// create response message
-		Element respElt = requestElt.getOwnerDocument().createElementNS(wsnUri, "wsnt:RenewResponse");		
+		Element respElt = requestElt.getOwnerDocument().createElementNS(WSN_URI, "wsnt:RenewResponse");		
 		return respElt;
 	}
 	
 	
-	public synchronized Element unsubscribe(String subUUID, Element requestElt) throws Exception
+	public synchronized Element unsubscribe(String subUUID, Element requestElt) throws BaseFault
 	{
 		// find subscription in table
 		if (subscriptionDB.remove(subUUID) == null)
 			throw new ResourceUnknownFault("Unknown Resource UUID: " + subUUID);
 		
 		// create response message
-		Element respElt = requestElt.getOwnerDocument().createElementNS(wsnUri, "wsnt:UnsubscribeResponse");	
+		Element respElt = requestElt.getOwnerDocument().createElementNS(WSN_URI, "wsnt:UnsubscribeResponse");	
 		return respElt;
 	}
 	
@@ -222,18 +222,18 @@ public class NotificationSystem
 							client.notify(msg);
 							break;
 						}
-						catch (SoapFault fault)
+						catch (SoapFault e)
 						{
 							// HACK to work around bug in MUSE library
-							if (fault.getReason().contains("Premature end of file"))
+							if (e.getReason().contains("Premature end of file"))
 								break;
 							
 							if (tries == nextSub.getNumberOfTries())
-								log.error("Could not reach notification consumer endpoint at " + nextSub.getConsumer().getAddress());
+								log.error("Could not reach notification consumer endpoint at " + nextSub.getConsumer().getAddress(), e);
 						}
 						
 						log.warn("Retrying to send notification to " + nextSub.getConsumer().getAddress() + " in " + timeBetweenRetries + "s");
-						Thread.sleep(timeBetweenRetries*1000);
+						wait(timeBetweenRetries*1000L);
 						tries++;
 					}
 					

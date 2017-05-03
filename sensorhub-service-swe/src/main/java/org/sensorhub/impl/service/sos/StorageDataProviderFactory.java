@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sos;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -105,7 +106,7 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
     
     
     @Override
-    public SOSOfferingCapabilities generateCapabilities() throws ServiceException
+    public SOSOfferingCapabilities generateCapabilities() throws SensorHubException
     {
         checkEnabled();
         
@@ -159,13 +160,13 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
         }
         catch (Exception e)
         {
-            throw new ServiceException("Error while generating capabilities for sensor " + MsgUtils.moduleString(storage), e);
+            throw new ServiceException("Cannot generate capabilities for storage provider " + MsgUtils.moduleString(storage), e);
         }
     }
     
     
     @Override
-    public void updateCapabilities() throws ServiceException
+    public void updateCapabilities() throws SensorHubException
     {
         checkEnabled();
         if (caps == null)
@@ -186,7 +187,7 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
         }
         catch (Exception e)
         {
-            throw new ServiceException("Error while updating capabilities for sensor " + MsgUtils.moduleString(storage), e);
+            throw new ServiceException("Cannot update capabilities for storage provider " + MsgUtils.moduleString(storage), e);
         }
     }
 
@@ -308,19 +309,11 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
             return storage.getLatestDataSourceDescription();
         else
             return storage.getDataSourceDescriptionAtTime(time);
-    }
-    
-    
-    @Override
-    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws Exception
-    {
-        checkEnabled();
-        return new StorageDataProvider(storage, config, filter);
     }    
     
     
     @Override
-    public Iterator<AbstractFeature> getFoiIterator(final IFoiFilter filter) throws Exception
+    public Iterator<AbstractFeature> getFoiIterator(final IFoiFilter filter) throws SensorHubException
     {
         if (storage instanceof IObsStorage)
             return ((IObsStorage) storage).getFois(filter);
@@ -333,7 +326,7 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
      * Checks if provider and underlying sensor are enabled
      * @throws SensorException
      */
-    protected void checkEnabled() throws ServiceException
+    protected void checkEnabled() throws SensorHubException
     {
         if (!config.enabled)
             throw new ServiceException("Offering " + config.offeringID + " is disabled");
@@ -374,6 +367,22 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
                     return;
             }
         } 
+    }
+    
+    
+    @Override
+    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws SensorHubException
+    {
+        checkEnabled();
+        
+        try
+        {
+            return new StorageDataProvider(storage, config, filter);
+        }
+        catch (IOException e)
+        {
+            throw new ServiceException("Cannot instantiate storage provider", e);
+        }
     }
 
 

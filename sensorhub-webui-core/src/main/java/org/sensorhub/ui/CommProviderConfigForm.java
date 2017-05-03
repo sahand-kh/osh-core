@@ -22,9 +22,9 @@ import com.vaadin.ui.ComponentContainer;
 import com.vaadin.ui.Field;
 
 
+@SuppressWarnings("serial")
 public class CommProviderConfigForm extends GenericConfigForm
 {
-    private static final long serialVersionUID = -5570947777524310604L;
     private static final String PROP_PROTOCOL = ".protocol";
 
 

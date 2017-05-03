@@ -47,7 +47,7 @@ public class SharedSensorConnector extends DirectSensorConnector implements ISPS
     
     
     @Override
-    public void updateCapabilities() throws Exception
+    public void updateCapabilities()
     {
         super.updateCapabilities();        
     }

@@ -29,11 +29,10 @@ import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
 
 
+@SuppressWarnings("serial")
 public class ObjectTypeSelectionPopup extends Window
 {
-    private static final long serialVersionUID = 280657033210669136L;
-
-
+    
     protected interface ObjectTypeSelectionCallback
     {
         public void onSelected(Class<?> objectType);

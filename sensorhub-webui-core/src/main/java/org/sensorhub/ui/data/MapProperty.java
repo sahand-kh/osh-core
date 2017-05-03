@@ -29,7 +29,7 @@ public class MapProperty extends ContainerProperty
 
 
     @Override
-    public void setValue(MyBeanItemContainer newValue) throws ReadOnlyException
+    public void setValue(MyBeanItemContainer newValue)
     {
         try
         {
@@ -44,7 +44,7 @@ public class MapProperty extends ContainerProperty
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Error while updating collection");
+            throw new IllegalStateException("Cannot update collection", e);
         }
     }
 }

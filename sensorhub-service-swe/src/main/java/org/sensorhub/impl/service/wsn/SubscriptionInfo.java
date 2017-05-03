@@ -14,17 +14,14 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.wsn;
 
-import java.io.Serializable;
 import java.util.Date;
 import java.util.UUID;
 import org.apache.muse.ws.addressing.EndpointReference;
 import org.apache.muse.ws.notification.Filter;
 
 
-public class SubscriptionInfo implements Serializable
+public class SubscriptionInfo
 {
-	private static final long serialVersionUID = 3112001090965898367L;
-	
 	protected String uid;
 	protected String userID;
 	protected EndpointReference producer;

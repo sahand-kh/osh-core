@@ -43,6 +43,7 @@ public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IE
         {
             Callable<Void> task = new Callable<Void>()
             {
+                @Override
                 public Void call() throws Exception
                 {
                     try
@@ -107,6 +108,7 @@ public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IE
         {
             Callable<Void> task = new Callable<Void>()
             {
+                @Override
                 public Void call() throws Exception
                 {
                     try
@@ -171,6 +173,7 @@ public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IE
         {
             Callable<Void> task = new Callable<Void>()
             {
+                @Override
                 public Void call() throws Exception
                 {
                     try

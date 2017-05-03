@@ -27,6 +27,7 @@ import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
+import java.io.IOException;
 import org.sensorhub.impl.service.swe.Template;
 import org.vast.ogc.om.IObservation;
 
@@ -54,17 +55,17 @@ public interface ISOSDataConsumer
     /**
      * Requests consumer to update sensor description
      * @param newSensorDescription
-     * @throws Exception
+     * @throws IOException
      */
-    public void updateSensor(AbstractProcess newSensorDescription) throws Exception;
+    public void updateSensor(AbstractProcess newSensorDescription) throws IOException;
     
     
     /**
      * Requests consumer to process a list of new observations
      * @param observations 
-     * @throws Exception
+     * @throws IOException
      */
-    public void newObservation(IObservation... observations) throws Exception;
+    public void newObservation(IObservation... observations) throws IOException;
     
     
     /**
@@ -74,27 +75,27 @@ public interface ISOSDataConsumer
      * @param encoding
      * @param obsTemplate 
      * @return new template ID
-     * @throws Exception
+     * @throws IOException
      */
-    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws Exception;
+    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws IOException;
     
     
     /**
      * Requests consumer to process a list of new result records
      * @param templateID 
      * @param datablocks 
-     * @throws Exception 
+     * @throws IOException 
      */
-    public void newResultRecord(String templateID, DataBlock... datablocks) throws Exception;
+    public void newResultRecord(String templateID, DataBlock... datablocks) throws IOException;
     
     
     /**
      * Retrieve previously registered template information
      * @param templateID
      * @return stream description (structure +encoding)
-     * @throws Exception 
+     * @throws IOException 
      */
-    public Template getTemplate(String templateID) throws Exception;
+    public Template getTemplate(String templateID) throws IOException;
     
     
     /**

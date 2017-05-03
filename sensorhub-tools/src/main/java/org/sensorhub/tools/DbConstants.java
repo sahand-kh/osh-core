@@ -13,9 +13,9 @@ package org.sensorhub.tools;
 
 public class DbConstants
 {
-    public static String SECTION_SENSORML = "SensorML";
-    public static String SECTION_DATASTORE = "DataStore";
-    public static String SECTION_RECORD_STRUCTURE = "elementType";
-    public static String SECTION_RECORD_ENCODING = "encoding";
-    public static String KEY_NULL_PRODUCER = "NULL";
+    public static final String SECTION_SENSORML = "SensorML";
+    public static final String SECTION_DATASTORE = "DataStore";
+    public static final String SECTION_RECORD_STRUCTURE = "elementType";
+    public static final String SECTION_RECORD_ENCODING = "encoding";
+    public static final String KEY_NULL_PRODUCER = "NULL";
 }

@@ -141,7 +141,7 @@ public class SWEVirtualSensor extends AbstractSensorModule<SWEVirtualSensorConfi
                             }
                             catch (SensorHubException e)
                             {
-                                log.warn(e.getMessage());
+                                log.warn("Cannot get remote sensor description", e);
                             }
                             
                             // create output

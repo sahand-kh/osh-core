@@ -37,17 +37,14 @@ import org.sensorhub.impl.service.HttpServerConfig;
 import org.sensorhub.impl.service.sos.SOSServiceConfig;
 import org.sensorhub.ui.api.IModuleAdminPanel;
 import org.sensorhub.ui.api.IModuleConfigForm;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.vaadin.server.VaadinServlet;
 
 
 public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEventListener
 {
-    protected static final Logger log = LoggerFactory.getLogger(AdminUI.class);
-    protected final static String SERVLET_PARAM_UI_CLASS = "UI";
-    protected final static String SERVLET_PARAM_MODULE_ID = "module_id";
-    protected final static String WIDGETSET = "widgetset";
+    protected static final String SERVLET_PARAM_UI_CLASS = "UI";
+    protected static final String SERVLET_PARAM_MODULE_ID = "module_id";
+    protected static final String WIDGETSET = "widgetset";
     
     private static AdminUIModule singleton;
     VaadinServlet vaadinServlet;
@@ -118,12 +115,12 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
                 configClass = customForm.configClass;
                 Class<?> clazz = Class.forName(customForm.uiClass);
                 customForms.put(configClass, (Class<IModuleConfigForm>)clazz);
-                log.debug("Loaded custom form for " + configClass);            
+                getLogger().debug("Loaded custom form for " + configClass);            
             }
         }
         catch (Exception e)
         {
-            log.error("Error while instantiating form builder for config class " + configClass, e);
+            getLogger().error("Error while instantiating form builder for config class " + configClass, e);
         }
         
         // load custom panels
@@ -143,12 +140,12 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
                 configClass = customPanel.configClass;
                 Class<?> clazz = Class.forName(customPanel.uiClass);
                 customPanels.put(configClass, (Class<IModuleAdminPanel<?>>)clazz);
-                log.debug("Loaded custom panel for " + configClass);
+                getLogger().debug("Loaded custom panel for " + configClass);
             } 
         }
         catch (Exception e)
         {
-            log.error("Error while instantiating panel builder for config class " + configClass, e);
+            getLogger().error("Error while instantiating panel builder for config class " + configClass, e);
         }
     }
     
@@ -177,6 +174,7 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
         // Note that this may hide error messages in other modules now that startup sequence is multithreaded
         PrintStream oldStdErr = System.err;
         System.setErr(new PrintStream(new OutputStream() {
+            @Override
             public void write(int b) { }
         }));
         httpServer.deployServlet(vaadinServlet, initParams, "/admin/*", "/VAADIN/*");
@@ -204,30 +202,38 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
     
     protected IModuleAdminPanel<IModule<?>> generatePanel(Class<?> clazz)
     {
+        IModuleAdminPanel<IModule<?>> panel = null;
+        
         try
         {
-            // check if there is a custom panel registered, if not use default
             Class<IModuleAdminPanel<IModule<?>>> uiClass = null;
+            
+            // check if there is a custom panel registered, if not use default
             while (uiClass == null && clazz != null)
             {
                 uiClass = (Class<IModuleAdminPanel<IModule<?>>>)customPanels.get(clazz.getCanonicalName());
                 clazz = clazz.getSuperclass();
             }
             
-            if (uiClass == null)
-                return new DefaultModulePanel<IModule<?>>();
-            
-            return uiClass.newInstance();
+            if (uiClass != null)
+                panel = uiClass.newInstance();
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Cannot instantiate UI class", e);
+            getLogger().error("Cannot create custom panel", e);            
         }
+        
+        if (panel == null)
+            return new DefaultModulePanel<IModule<?>>();
+        else
+            return panel;
     }
     
     
     protected IModuleConfigForm generateForm(Class<?> clazz)
     {
+        IModuleConfigForm form = null;
+        
         try
         {
             // check if there is a custom form registered, if not use default        
@@ -238,15 +244,18 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
                 clazz = clazz.getSuperclass();
             }
             
-            if (uiClass == null)
-                return new GenericConfigForm();
-            
-            return uiClass.newInstance();
+            if (uiClass != null)
+               form = uiClass.newInstance();
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Cannot instantiate UI class", e);
+            getLogger().error("Cannot create custom form", e);
         }
+        
+        if (form == null)
+            return new GenericConfigForm();
+        else
+            return form;
     }
     
 

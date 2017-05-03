@@ -73,7 +73,7 @@ public interface ISubscriptionDB
 	 * @param sub
 	 * @throws IllegalArgumentException thrown if the subscription is not valid with the appropriate message
 	 */
-	public void checkSubscription(SubscriptionInfo sub) throws IllegalArgumentException;
+	public void checkSubscription(SubscriptionInfo sub);
 	
 	
 	/**

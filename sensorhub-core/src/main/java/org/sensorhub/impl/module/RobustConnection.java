@@ -14,6 +14,7 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.module;
 
+import java.io.IOException;
 import org.sensorhub.api.client.ClientException;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.impl.module.AbstractModule;
@@ -61,7 +62,7 @@ public abstract class RobustConnection
      * @throws Exception sent on error that requires aborting the connection process 
      * (no more connection attempts will be made after such exception is thrown)
      */
-    public abstract boolean tryConnect() throws Exception;
+    public abstract boolean tryConnect() throws IOException;
     
     
     /**
@@ -167,6 +168,7 @@ public abstract class RobustConnection
         // restart in separate thread
         new Thread(new Runnable()
         {
+            @Override
             public void run()
             {
                 try

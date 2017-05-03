@@ -81,22 +81,7 @@ public class PersistenceManagerImpl implements IPersistenceManager
     @Override
     public Collection<ModuleConfig> getAvailableModules()
     {
-        ArrayList<ModuleConfig> storageTypes = new ArrayList<ModuleConfig>();
-        
-        // retrieve all modules implementing IStorageModule
-        for (ModuleConfig config: moduleRegistry.getAvailableModules())
-        {
-            try
-            {
-                if (IStorageModule.class.isAssignableFrom(Class.forName(config.moduleClass)))
-                    storageTypes.add(config);
-            }
-            catch (Exception e)
-            {
-            }
-        }
-        
-        return storageTypes;
+        return moduleRegistry.getAvailableModules(IStorageModule.class);
     }
 
 

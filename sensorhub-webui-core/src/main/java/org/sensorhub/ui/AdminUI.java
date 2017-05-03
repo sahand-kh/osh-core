@@ -14,8 +14,6 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.ui;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,7 +59,6 @@ import com.vaadin.event.Action.Handler;
 import com.vaadin.event.ItemClickEvent;
 import com.vaadin.event.ItemClickEvent.ItemClickListener;
 import com.vaadin.server.FontAwesome;
-import com.vaadin.server.Page;
 import com.vaadin.server.Resource;
 import com.vaadin.server.ThemeResource;
 import com.vaadin.server.VaadinRequest;
@@ -94,9 +91,9 @@ import com.vaadin.ui.Window.CloseListener;
 
 @Theme("sensorhub")
 @Push(value=PushMode.MANUAL, transport=Transport.STREAMING)
+@SuppressWarnings("serial")
 public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConstants
 {
-    private static final long serialVersionUID = 4069325051233125115L;    
     private static final Action ADD_MODULE_ACTION = new Action("Add New Module", new ThemeResource("icons/module_add.png"));
     private static final Action REMOVE_MODULE_ACTION = new Action("Remove Module", new ThemeResource("icons/module_delete.png"));
     private static final Action START_MODULE_ACTION = new Action("Start", new ThemeResource("icons/enable.png"));
@@ -108,10 +105,10 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     private static final String PROP_STATE = "state";
     private static final String PROP_MODULE_OBJECT = "module";
     
-    AdminUIConfig uiConfig;
-    AdminUISecurity securityHandler;
+    transient AdminUIConfig uiConfig;
+    transient AdminUISecurity securityHandler;
+    transient Map<Class<?>, TreeTable> moduleTables = new HashMap<Class<?>, TreeTable>();
     VerticalLayout configArea;
-    Map<Class<?>, TreeTable> moduleTables = new HashMap<Class<?>, TreeTable>();
     
     
     @Override
@@ -128,7 +125,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Cannot get UI module configuration", e);
+            throw new IllegalStateException("Cannot get UI module configuration", e);
         }
         
         // security check
@@ -140,7 +137,6 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         }
         
         // register new field converter for integer numbers
-        @SuppressWarnings("serial")
         ConverterFactory converterFactory = new DefaultConverterFactory() {
             @Override
             protected <PRESENTATION, MODEL> Converter<PRESENTATION, MODEL> findConverter(
@@ -310,7 +306,6 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     }
     
     
-    @SuppressWarnings("serial")
     protected Component buildToolbar()
     {
         HorizontalLayout toolbar = new HorizontalLayout();
@@ -325,6 +320,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         shutdownButton.addStyleName(STYLE_SMALL);
         shutdownButton.setWidth(100.0f, Unit.PERCENTAGE);
         shutdownButton.addClickListener(new Button.ClickListener() {
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 // security check
@@ -352,6 +348,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             
                             // shutdown in separate thread
                             new Timer().schedule(new TimerTask() {
+                                @Override
                                 public void run()
                                 {
                                     SensorHub.getInstance().stop(false, true);
@@ -374,6 +371,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         restartButton.addStyleName(STYLE_SMALL);
         restartButton.setWidth(100.0f, Unit.PERCENTAGE);
         restartButton.addClickListener(new Button.ClickListener() {
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 // security check
@@ -401,6 +399,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             
                             // shutdown in separate thread
                             new Timer().schedule(new TimerTask() {
+                                @Override
                                 public void run()
                                 {
                                     SensorHub.getInstance().stop(false, true);
@@ -423,6 +422,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         saveButton.addStyleName(STYLE_SMALL);
         saveButton.setWidth(100.0f, Unit.PERCENTAGE);
         saveButton.addClickListener(new Button.ClickListener() {
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 // security check
@@ -446,7 +446,8 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             }
                             catch (Exception ex)
                             {
-                                displayErrorPopup(ex.getMessage());
+                                String msg = "Cannot save configuration";
+                                DisplayUtils.showErrorPopup(msg, ex);
                             }
                         }
                     }                        
@@ -496,7 +497,6 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     }
     
     
-    @SuppressWarnings("serial")
     protected void buildModuleList(VerticalLayout layout, List<IModule<?>> moduleList, final Class<?> configType)
     {
         final ModuleRegistry registry = SensorHub.getInstance().getModuleRegistry();
@@ -578,6 +578,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         });
         
         table.setItemDescriptionGenerator(new ItemDescriptionGenerator() {                             
+            @Override
             public String generateDescription(Component source, Object itemId, Object propertyId) {
                 if (propertyId != null && propertyId.equals(PROP_STATE))
                 {
@@ -621,9 +622,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                 }
                 catch (Exception e)
                 {
-                    String msg = "Unexpected error when selecting module";
-                    AdminUIModule.log.error(msg, e);
-                    displayErrorPopup(msg + '\n' + e.getMessage());
+                    DisplayUtils.showErrorPopup("Unexpected error when selecting module", e);
                 }
             }            
         });        
@@ -679,6 +678,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                     
                     // show popup to select among available module types
                     ModuleTypeSelectionPopup popup = new ModuleTypeSelectionPopup(configType, new ModuleTypeSelectionCallback() {
+                        @Override
                         public void onSelected(ModuleConfig config)
                         {
                             try
@@ -695,16 +695,11 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             }
                             catch (NoClassDefFoundError e)
                             {
-                                showDependencyError(config.getClass());
-                                return;
+                                DisplayUtils.showDependencyError(config.getClass(), e);
                             }
-                            catch (Throwable e)
+                            catch (Exception e)
                             {
-                                String msg = e.getMessage();
-                                if (e.getCause() != null)
-                                    msg += '\n' + e.getCause().getMessage();
-                                displayErrorPopup(msg);
-                                return;
+                                DisplayUtils.showErrorPopup("Cannot load module", e);
                             }
                         }
                     });
@@ -742,8 +737,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     }
                                     catch (SensorHubException ex)
                                     {                        
-                                        String msg = "The module could not be removed";
-                                        displayErrorPopup(msg + '\n' + ex.getMessage());
+                                        DisplayUtils.showErrorPopup("The module could not be removed", ex);
                                     }
                                 }
                             }                        
@@ -777,8 +771,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     }
                                     catch (SensorHubException ex)
                                     {
-                                        String msg = "The module could not be started";
-                                        displayErrorPopup(msg + '\n' + ex.getMessage());
+                                        DisplayUtils.showErrorPopup("The module could not be started", ex);
                                     }
                                 }
                             }                        
@@ -809,8 +802,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     }
                                     catch (SensorHubException ex)
                                     {
-                                        String msg = "The module could not be stopped";
-                                        displayErrorPopup(msg + '\n' + ex.getMessage());
+                                        DisplayUtils.showErrorPopup("The module could not be stopped", ex);
                                     }
                                 }
                             }                        
@@ -841,8 +833,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     }
                                     catch (SensorHubException ex)
                                     {
-                                        String msg = "The module could not be restarted";
-                                        displayErrorPopup(msg + '\n' + ex.getMessage());
+                                        DisplayUtils.showErrorPopup("The module could not be restarted", ex);
                                     }
                                 }
                             }                        
@@ -873,8 +864,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     }
                                     catch (SensorHubException ex)
                                     {
-                                        String msg = "The module could not be reinitialized";
-                                        displayErrorPopup(msg + '\n' + ex.getMessage());
+                                        DisplayUtils.showErrorPopup("The module could not be reinitialized", ex);
                                     }
                                 }
                             }                        
@@ -963,6 +953,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                     if (foundTable != null)
                     {
                         access(new Runnable() {
+                            @Override
                             public void run()
                             {
                                 // add module to table
@@ -977,6 +968,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                     if (foundItem != null)
                     {
                         access(new Runnable() {
+                            @Override
                             public void run()
                             {
                                 // update module name
@@ -992,6 +984,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                     if (foundItem != null)
                     {
                         access(new Runnable() {
+                            @Override
                             public void run()
                             {
                                 // update module state
@@ -1026,57 +1019,5 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         SensorHub.getInstance().getEventBus().unregisterListener(ModuleRegistry.ID, EventBus.MAIN_TOPIC, this);
         
         super.detach();
-    }
-    
-    
-    public static void showDependencyError(Class<?> clazz)
-    {
-        StringBuilder msg = new StringBuilder();
-        msg.append("The module could not be loaded.\nPlease check that the following dependencies are installed:\n\n");
-        for (String dep: ModuleUtils.getBundleDependencies(clazz))
-            msg.append(dep).append('\n');
-        displayErrorPopup(msg.toString());
-    }
-
-    
-    public static void displayErrorPopup(String msg)
-    {
-        new Notification(
-                "Error<br/>",
-                msg,
-                Notification.Type.ERROR_MESSAGE, true)
-                .show(Page.getCurrent());
-    }
-    
-    
-    public static void displayErrorDetailsPopup(IModule<?> module, Throwable e)
-    {
-        StringWriter writer = new StringWriter();
-        
-        // scan causes for NoClassDefFoundErrors
-        // -> warn of a potential dependency problem
-        Throwable error = e;
-        while (error != null)
-        {
-            if (error instanceof NoClassDefFoundError)
-            {
-                writer.append("A class could not be found at runtime.\nPlease check that the following dependencies are installed:\n\n");
-                for (String dep: ModuleUtils.getBundleDependencies(module.getClass()))
-                    writer.append(dep).append('\n');
-                writer.append('\n');
-                break;
-            }
-            
-            error = error.getCause();
-        }
-        
-        e.printStackTrace(new PrintWriter(writer));
-        String stackTrace = "<pre>" + writer.toString() + "</pre>";
-        
-        new Notification(
-                "Error<br/>",
-                stackTrace,
-                Notification.Type.ERROR_MESSAGE, true)
-                .show(Page.getCurrent());
     }
 }

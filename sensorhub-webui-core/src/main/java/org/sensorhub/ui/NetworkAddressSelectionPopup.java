@@ -28,18 +28,16 @@ import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
 
 
+@SuppressWarnings("serial")
 public class NetworkAddressSelectionPopup extends Window
 {
-    private static final long serialVersionUID = -7139125123797297769L;
-    
-    
+        
     protected interface AddressSelectionCallback
     {
         public void onSelected(String address);
     }
     
     
-    @SuppressWarnings({ "serial" })
     public NetworkAddressSelectionPopup(final NetworkType addressType, final AddressSelectionCallback callback)
     {
         super("Select Network Host");
@@ -65,6 +63,7 @@ public class NetworkAddressSelectionPopup extends Window
         // add useAddress button
         Button okAddressButton = new Button("Use Address");
         okAddressButton.addClickListener(new Button.ClickListener() {
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 notifyItemSelected(scanPanel, callback, false);
@@ -75,6 +74,7 @@ public class NetworkAddressSelectionPopup extends Window
         // add useName button
         Button okNameButton = new Button("Use Name");
         okNameButton.addClickListener(new Button.ClickListener() {
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 notifyItemSelected(scanPanel, callback, true);

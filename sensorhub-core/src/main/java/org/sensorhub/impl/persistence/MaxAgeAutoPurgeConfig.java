@@ -29,7 +29,7 @@ public class MaxAgeAutoPurgeConfig extends StorageAutoPurgeConfig
 {
     
     @DisplayInfo(label="Max Record Age", desc="Maximum age of data to be kept in storage (in seconds)")
-    public double maxRecordAge = 7*24*3600;
+    public double maxRecordAge = 7.*24.*3600.;
     
     
     @Override

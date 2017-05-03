@@ -61,6 +61,7 @@ public class AsyncEventHandler implements IEventHandler
                 dispatching = true;
                 
                 threadPool.execute(new Runnable() {
+                    @Override
                     public void run()
                     {
                         try

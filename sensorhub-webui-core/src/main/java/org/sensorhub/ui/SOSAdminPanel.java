@@ -41,14 +41,13 @@ import com.vaadin.ui.VerticalLayout;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class SOSAdminPanel extends DefaultModulePanel<SOSService> implements IModuleAdminPanel<SOSService>
 {
-    private static final long serialVersionUID = -5196033911134749125L;
     private static final String PROP_ENDPOINT = "endPoint";
     private static final String LINK_TARGET = "osh-sos";
     
     
-    @SuppressWarnings("serial")
     static class LinkItem extends HorizontalLayout
     {
         public LinkItem(String label, String linkText, String href)

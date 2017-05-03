@@ -64,6 +64,7 @@ public abstract class AbstractPermission implements IPermission
     }
     
     
+    @Override
     public String getLabel()
     {
         if (label != null)
@@ -73,6 +74,7 @@ public abstract class AbstractPermission implements IPermission
     }
 
 
+    @Override
     public String getDescription()
     {
         return description;
@@ -118,13 +120,6 @@ public abstract class AbstractPermission implements IPermission
     public String toString()
     {
         return (label != null) ? label : name;
-    }
-    
-    
-    @Override
-    public int hashCode()
-    {
-        return name.hashCode();
     }
     
     

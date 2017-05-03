@@ -22,10 +22,10 @@ import javax.servlet.http.HttpServletResponse;
 import com.vaadin.server.VaadinServlet;
 
 
+@SuppressWarnings("serial")
 public class AdminUIServlet extends VaadinServlet
 {
-    private static final long serialVersionUID = -3200537452005091041L;
-    AdminUISecurity securityHandler;
+    final transient AdminUISecurity securityHandler;
     
     
     AdminUIServlet(AdminUISecurity securityHandler)

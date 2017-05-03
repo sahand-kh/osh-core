@@ -28,24 +28,24 @@ public class SPSSecurity extends ModuleSecurity
     private final static String LABEL_PARAMS = "Task Parameters";
     private final static String LABEL_TASK = "Task Status";
     
-    public final IPermission sps_read;
-    public final IPermission sps_read_caps;
-    public final IPermission sps_read_sensor;
-    public final IPermission sps_read_params;
-    public final IPermission sps_read_task;
+    final IPermission sps_read;
+    final IPermission sps_read_caps;
+    final IPermission sps_read_sensor;
+    final IPermission sps_read_params;
+    final IPermission sps_read_task;
     
-    public final IPermission sps_task;
-    public final IPermission sps_task_submit;
-    public final IPermission sps_task_feasibility;
-    public final IPermission sps_task_update;
-    public final IPermission sps_task_cancel;
-    public final IPermission sps_task_reserve;
-    public final IPermission sps_task_direct;
+    final IPermission sps_task;
+    final IPermission sps_task_submit;
+    final IPermission sps_task_feasibility;
+    final IPermission sps_task_update;
+    final IPermission sps_task_cancel;
+    final IPermission sps_task_reserve;
+    final IPermission sps_task_direct;
     
-    public final IPermission sps_insert_sensor;
-    public final IPermission sps_update_sensor;
-    public final IPermission sps_delete_sensor;
-    public final IPermission sps_connect_tasking;
+    final IPermission sps_insert_sensor;
+    final IPermission sps_update_sensor;
+    final IPermission sps_delete_sensor;
+    final IPermission sps_connect_tasking;
     
     
     public SPSSecurity(SPSService sps, boolean enable)
@@ -86,19 +86,6 @@ public class SPSSecurity extends ModuleSecurity
     }
     
     
-    public void checkPermission(String offeringUri, IPermission perm) throws SecurityException
-    {
-        String permName = getOfferingPermissionName(offeringUri);
-        checkPermission(perm.getChildren().get(permName));
-    }
-    
-    
-    protected String getOfferingPermissionName(String offeringUri)
-    {
-        return "offering[" + offeringUri + "]";
-    }
-    
-    
     protected void addOfferingPermissions(String offeringUri)
     {
         String permName = getOfferingPermissionName(offeringUri);
@@ -113,5 +100,18 @@ public class SPSSecurity extends ModuleSecurity
         new ItemPermission(sps_task_direct, permName);
         new ItemPermission(sps_update_sensor, permName);
         new ItemPermission(sps_delete_sensor, permName);        
+    }
+    
+    
+    public void checkPermission(String offeringUri, IPermission perm) throws SecurityException
+    {
+        String permName = getOfferingPermissionName(offeringUri);
+        checkPermission(perm.getChildren().get(permName));
+    }
+    
+    
+    protected String getOfferingPermissionName(String offeringUri)
+    {
+        return "offering[" + offeringUri + "]";
     }
 }

@@ -34,9 +34,9 @@ import com.vaadin.ui.Window;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 24, 2013
  */
+@SuppressWarnings("serial")
 public class ConfirmDialog extends Window implements ClickListener
 {
-    private static final long serialVersionUID = 421868377844545305L;
     private static String DEFAULT_CAPTION = "Please Confirm";
     private static String DEFAULT_OK_CAPTION = "Yes";
     private static String DEFAULT_CANCEL_CAPTION = "No";

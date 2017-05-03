@@ -27,23 +27,19 @@ import java.util.NoSuchElementException;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Mar 15, 2017
  */
-public abstract class FilteredIterator<E> implements Iterator<E>
+public abstract class FilteredIterator<E> extends IteratorWrapper<E, E>
 {
-    E next;
-    Iterator<E> it;
-    
     
     public FilteredIterator(Iterator<E> it)
     {
-        this.it = it;
-        preloadNext();
+        super(it);
     }
     
     
     @Override
     public boolean hasNext()
     {
-        return (next != null);
+        return next != null;
     }
     
 
@@ -56,25 +52,12 @@ public abstract class FilteredIterator<E> implements Iterator<E>
     }
     
     
-    /**
-     * Preload next element (filter is applied)
-     * @return the current element (i.e. the one that should be returned by next())
-     */
-    protected E preloadNext()
+    @Override
+    protected E process(E elt)
     {
-        E current = next;        
-        next = null;
-        
-        // loop until we find the next acceptable item
-        // or end of iteration
-        while (next == null && it.hasNext())
-        {
-            E elt = it.next();
-            if (accept(elt))
-                next = elt;
-        }
-        
-        return current;
+        if (accept(elt))
+            return elt;
+        return null;
     }
     
     

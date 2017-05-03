@@ -17,6 +17,7 @@ package org.sensorhub.impl.service.sos;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.processing.IStreamProcessModule;
+import org.sensorhub.api.service.ServiceException;
 import org.sensorhub.impl.SensorHub;
 
 
@@ -42,10 +43,18 @@ public class StreamProcessProviderFactory extends StreamDataProviderFactory<IStr
 
     
     @Override
-    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws Exception
+    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws SensorHubException
     {
         checkEnabled();
-        return new StreamProcessDataProvider(producer, (StreamProcessProviderConfig)config, filter);
+        
+        try
+        {
+            return new StreamProcessDataProvider(producer, (StreamProcessProviderConfig)config, filter);
+        }
+        catch (Exception e)
+        {
+            throw new ServiceException("Cannot instantiate processing provider", e);
+        }
     }
 
 }

@@ -31,7 +31,7 @@ import com.vaadin.data.util.AbstractProperty;
 @SuppressWarnings({ "serial" })
 public abstract class BaseProperty<T> extends AbstractProperty<T>
 {
-    protected Field f;
+    protected transient Field f;
     
     
     public BaseProperty()

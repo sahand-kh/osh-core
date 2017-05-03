@@ -34,6 +34,7 @@ public class TestAsyncModule
         
         module.registerListener(new IEventListener()
         {
+            @Override
             public void handleEvent(Event<?> e)
             {
                 switch (((ModuleEvent)e).getNewState())

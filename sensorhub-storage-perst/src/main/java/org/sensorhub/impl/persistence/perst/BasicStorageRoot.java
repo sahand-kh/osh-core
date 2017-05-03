@@ -51,7 +51,7 @@ class BasicStorageRoot extends PersistentResource implements IBasicStorage
     private static Key KEY_SML_END_ALL_TIME = new Key(Double.POSITIVE_INFINITY);
     
     Index<AbstractProcess> descriptionTimeIndex;
-    Map<String, TimeSeriesImpl> dataStores;
+    HashMap<String, TimeSeriesImpl> dataStores;
     
     
     // default constructor needed on Android JVM

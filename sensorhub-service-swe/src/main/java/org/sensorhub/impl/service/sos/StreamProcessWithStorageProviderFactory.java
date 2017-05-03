@@ -46,7 +46,7 @@ public class StreamProcessWithStorageProviderFactory extends StreamWithStoragePr
 
 
     @Override
-    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws Exception
+    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws SensorHubException
     {
         TimeExtent timeRange = filter.getTimeRange();
         
@@ -55,7 +55,14 @@ public class StreamProcessWithStorageProviderFactory extends StreamWithStoragePr
             if (!producer.isStarted())
                 throw new ServiceException("Process " + MsgUtils.moduleString(producer) + " is disabled");
             
-            return new StreamProcessDataProvider(producer, streamProviderConfig, filter);
+            try
+            {
+                return new StreamProcessDataProvider(producer, streamProviderConfig, filter);
+            }
+            catch (Exception e)
+            {
+                throw new ServiceException("Cannot instantiate processing provider", e);
+            }
         }
         else
         {            

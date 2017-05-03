@@ -26,6 +26,7 @@ package org.sensorhub.impl.service.sos;
 import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
+import java.io.IOException;
 import org.vast.ogc.om.IObservation;
 
 
@@ -47,7 +48,7 @@ public interface ISOSDataProvider
      * @return observation instance
      * @throws Exception
      */
-    public IObservation getNextObservation() throws Exception;
+    public IObservation getNextObservation() throws IOException;
     
     
     /**
@@ -56,7 +57,7 @@ public interface ISOSDataProvider
      * @return data block
      * @throws Exception
      */
-    public DataBlock getNextResultRecord() throws Exception;
+    public DataBlock getNextResultRecord() throws IOException;
     
     
     /**
@@ -65,7 +66,7 @@ public interface ISOSDataProvider
      * @return data component
      * @throws Exception 
      */
-    public DataComponent getResultStructure() throws Exception;
+    public DataComponent getResultStructure() throws IOException;
     
     
     /**
@@ -74,7 +75,7 @@ public interface ISOSDataProvider
      * @return encoding instance
      * @throws Exception 
      */
-    public DataEncoding getDefaultResultEncoding() throws Exception;
+    public DataEncoding getDefaultResultEncoding() throws IOException;
     
     
     /**

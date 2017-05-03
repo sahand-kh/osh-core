@@ -30,15 +30,16 @@ import com.vaadin.data.validator.StringLengthValidator;
 import com.vaadin.ui.Field;
 
 
+@SuppressWarnings("serial")
 public class GenericStorageConfigForm extends GenericConfigForm implements IModuleConfigForm
 {
-    private static final long serialVersionUID = 4462720978742325333L;
     public static final String PROP_STORAGE_PATH = "storagePath";
     public static final String PROP_STORAGE_CONFIG = "storageConfig";
     public static final String PROP_AUTOPURGE = "autoPurgeConfig";
     public static final String PROP_DATASRC_ID = "dataSourceID";
     
     
+    @Override
     protected Field<?> buildAndBindField(String label, String propId, Property<?> prop)
     {
         Field<Object> field = (Field<Object>)super.buildAndBindField(label, propId, prop);

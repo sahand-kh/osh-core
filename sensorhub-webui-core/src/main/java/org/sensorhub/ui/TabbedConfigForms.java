@@ -24,10 +24,9 @@ import com.vaadin.ui.TabSheet.Tab;
 import com.vaadin.ui.VerticalLayout;
 
 
+@SuppressWarnings("serial")
 public class TabbedConfigForms extends VerticalLayout implements UIConstants
 {
-    private static final long serialVersionUID = 2815909368923236139L;
-    
     protected TabSheet configTabs;
     
     

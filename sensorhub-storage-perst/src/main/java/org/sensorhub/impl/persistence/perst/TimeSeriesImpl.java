@@ -14,18 +14,14 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.persistence.perst;
 
-import java.nio.ByteOrder;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import net.opengis.swe.v20.BinaryEncoding;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
 import org.garret.perst.Index;
 import org.garret.perst.IterableIterator;
-import org.garret.perst.IteratorWrapper;
 import org.garret.perst.Key;
 import org.garret.perst.Persistent;
 import org.garret.perst.Storage;
@@ -33,6 +29,7 @@ import org.sensorhub.api.persistence.DataKey;
 import org.sensorhub.api.persistence.IDataFilter;
 import org.sensorhub.api.persistence.IDataRecord;
 import org.sensorhub.api.persistence.IRecordStoreInfo;
+import org.sensorhub.impl.persistence.IteratorWrapper;
 
 
 /**
@@ -45,8 +42,8 @@ import org.sensorhub.api.persistence.IRecordStoreInfo;
  */
 class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
 {
-    static Key KEY_DATA_START_ALL_TIME = new Key(Double.NEGATIVE_INFINITY);
-    static Key KEY_DATA_END_ALL_TIME = new Key(Double.POSITIVE_INFINITY);
+    static final Key KEY_DATA_START_ALL_TIME = new Key(Double.NEGATIVE_INFINITY);
+    static final Key KEY_DATA_END_ALL_TIME = new Key(Double.POSITIVE_INFINITY);
     
     DataComponent recordDescription;
     DataEncoding recommendedEncoding;
@@ -152,22 +149,6 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
     @Override
     public DataEncoding getRecommendedEncoding()
     {
-        // HACK to fix broken ByteOrder enum
-        // java.nio.ByteOrder is a class with static singletons instead of an enum
-        // This causes instances deserialized from storage to be unequal with the constant
-        // that we compare with everywhere
-        if (recommendedEncoding instanceof BinaryEncoding)
-        {
-            ByteOrder byteOrder = ((BinaryEncoding) recommendedEncoding).getByteOrder();
-            if (byteOrder != null && byteOrder != ByteOrder.BIG_ENDIAN && byteOrder != ByteOrder.LITTLE_ENDIAN)
-            {
-                if (byteOrder.toString().equals(ByteOrder.LITTLE_ENDIAN.toString()))
-                    byteOrder = ByteOrder.LITTLE_ENDIAN;
-                else
-                    byteOrder = ByteOrder.BIG_ENDIAN;
-            }
-        }
-        
         return recommendedEncoding;
     }
 
@@ -206,17 +187,20 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
         
         return new Iterator<DataBlock>()
         {
+            @Override
             public final boolean hasNext()
             {
                 return it.hasNext();
             }
 
+            @Override
             public final DataBlock next()
             {
                 Entry<Object, DataBlock> entry = it.next();
                 return entry.getValue();
             }
 
+            @Override
             public final void remove()
             {
                 it.remove();
@@ -228,7 +212,7 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
     int getNumMatchingRecords(IDataFilter filter, long maxCount)
     {
         // use entry iterator so datablocks are not loaded during scan
-        IterableIterator<Entry<Object, DataBlock>> it = getEntryIterator(filter, false);
+        Iterator<Entry<Object, DataBlock>> it = getEntryIterator(filter, false);
         
         int count = 0;
         while (it.hasNext() && count <= maxCount)
@@ -247,11 +231,13 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
         
         return new Iterator<DBRecord>()
         {
+            @Override
             public final boolean hasNext()
             {
                 return it.hasNext();
             }
 
+            @Override
             public final DBRecord next()
             {
                 Entry<Object, DataBlock> entry = it.next();
@@ -259,68 +245,16 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
                 return new DBRecord(key, entry.getValue());
             }
 
+            @Override
             public final void remove()
             {
                 it.remove();
             }
         };
-        
-        /*double[] timeRange = filter.getTimeStampRange();
-        Key from = new Key(timeRange == null ? Double.NEGATIVE_INFINITY : timeRange[0]);
-        Key till = new Key(timeRange == null ? Double.POSITIVE_INFINITY : timeRange[1]);        
-        final Iterator<Entry<Object, DataBlock>> it = recordIndex.entryIterator(from, till, Index.ASCENT_ORDER);
-        
-        // return iterator protected by a shared lock
-        return new Iterator<DBRecord>()
-        {
-            DBRecord tmpRecord;
-            
-            public final boolean hasNext()
-            {
-                if (tmpRecord != null)
-                    return true;
-                
-                try
-                {    
-                    recordIndex.sharedLock();
-                    boolean hasNext = it.hasNext();
-                    if (hasNext)
-                    {
-                        Entry<Object, DataBlock> entry = it.next();
-                        DataKey key = new DataKey(recordDescription.getName(), (double)entry.getKey());
-                        tmpRecord = new DBRecord(key, entry.getValue());
-                    }
-                    
-                    return hasNext;
-                }
-                finally
-                {
-                    recordIndex.unlock();
-                }
-            }                
-            
-            public final DBRecord next()
-            {
-                if (this.tmpRecord == null)
-                {
-                    if (!hasNext())
-                        throw new NoSuchElementException();
-                }
-                                    
-                DBRecord next = this.tmpRecord;
-                this.tmpRecord = null;                
-                return next;
-            }
-
-            public final void remove()
-            {
-                it.remove();
-            }
-        };*/
     }
     
     
-    IterableIterator<Entry<Object,DataBlock>> getEntryIterator(IDataFilter filter, boolean preloadValue)
+    Iterator<Entry<Object,DataBlock>> getEntryIterator(IDataFilter filter, boolean preloadValue)
     {
         double[] timeRange = filter.getTimeStampRange();
         Key keyFirst = new Key(timeRange == null ? Double.NEGATIVE_INFINITY : timeRange[0]);
@@ -332,65 +266,38 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
     /*
      * Gets an entry iterator over the recordIndex protected by a shared lock
      */
-    IterableIterator<Entry<Object,DataBlock>> getEntryIterator(Key keyFirst, Key keyLast, int order, final boolean preloadValue)
+    Iterator<Entry<Object,DataBlock>> getEntryIterator(Key keyFirst, Key keyLast, int order, final boolean preloadValue)
     {
         try
         {
             recordIndex.sharedLock();
-            IterableIterator<Entry<Object,DataBlock>> it = recordIndex.entryIterator(keyFirst, keyLast, order);
-            return new IteratorWrapper<Entry<Object,DataBlock>>(it)
+            
+            Iterator<Entry<Object,DataBlock>> indexIt = recordIndex.entryIterator(keyFirst, keyLast, order);
+            return new IteratorWrapper<Entry<Object,DataBlock>, Entry<Object,DataBlock>>(indexIt)
             {
-                CachedEntry<DataBlock> tmpEntry;                
-                
-                public final boolean hasNext()
+                @Override
+                protected Entry<Object,DataBlock> preloadNext()
                 {
-                    if (tmpEntry != null)
-                        return true;
-                    
                     try
                     {    
                         recordIndex.sharedLock();
-                        boolean hasNext = super.hasNext();
-                        if (hasNext)
-                        {
-                            tmpEntry = new CachedEntry<DataBlock>(super.next());
-                            tmpEntry.getKey(); // preload key
-                            if (preloadValue)
-                                tmpEntry.getValue(); // preload value
-                        }
-                        return hasNext;
+                        return super.preloadNext();
                     }
                     finally
                     {
                         recordIndex.unlock();
                     }
-                }                
-                
-                public final Entry<Object,DataBlock> next()
-                {
-                    if (this.tmpEntry == null)
-                    {
-                        if (!hasNext())
-                            throw new NoSuchElementException();
-                    }
-                                        
-                    Entry<Object,DataBlock> nextEntry = this.tmpEntry;
-                    this.tmpEntry = null;
-                    
-                    return nextEntry;
                 }
                 
-                public final void remove()
+                @Override
+                protected CachedEntry<DataBlock> process(Entry<Object,DataBlock> elt)
                 {
-                    try
-                    {
-                        recordIndex.exclusiveLock();
-                        super.remove();
-                    }
-                    finally
-                    {
-                        recordIndex.unlock();
-                    }
+                    // preload key and value if needed
+                    CachedEntry<DataBlock> cachedItem = new CachedEntry<>(elt);
+                    cachedItem.getKey(); // preload key
+                    if (preloadValue)
+                        cachedItem.getValue(); // preload value
+                    return cachedItem;
                 }
             };
         }
@@ -491,18 +398,20 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
     
     public Iterator<double[]> getRecordsTimeClusters()
     {
-        final IterableIterator<Entry<Object, DataBlock>> it;
+        final Iterator<Entry<Object, DataBlock>> it;
         it = getEntryIterator(KEY_DATA_START_ALL_TIME, KEY_DATA_END_ALL_TIME, Index.ASCENT_ORDER, false);
         
         return new Iterator<double[]>()
         {
             double lastTime = Double.NaN;
             
+            @Override
             public boolean hasNext()
             {
                 return it.hasNext();
             }
 
+            @Override
             public double[] next()
             {
                 double[] clusterTimeRange = new double[2];
@@ -532,8 +441,10 @@ class TimeSeriesImpl extends Persistent implements IRecordStoreInfo
                 return clusterTimeRange;
             }
 
+            @Override
             public void remove()
-            {               
+            {
+                throw new UnsupportedOperationException();
             }    
         };
     }

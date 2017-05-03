@@ -16,8 +16,10 @@ package org.sensorhub.impl.service.sos;
 
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
+import java.io.IOException;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.persistence.IBasicStorage;
+import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.vast.ogc.om.IObservation;
@@ -45,7 +47,7 @@ public class SensorWithStorageConsumer extends SensorDataConsumer implements ISO
 
 
     @Override
-    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws Exception
+    public String newResultTemplate(DataComponent component, DataEncoding encoding, IObservation obsTemplate) throws IOException
     {
         // call superclass w/o obs template so no FOI is published yet
         // we need to wait until we have a record store to do that
@@ -57,8 +59,15 @@ public class SensorWithStorageConsumer extends SensorDataConsumer implements ISO
             storage.addRecordStore(outputName, component, encoding);
         
         // publish new feature of interest (now that we have a proper record store)
-        if (obsTemplate != null)
-            sensor.newFeatureOfInterest(outputName, obsTemplate.getFeatureOfInterest());
+        try
+        {
+            if (obsTemplate != null)
+                sensor.newFeatureOfInterest(outputName, obsTemplate.getFeatureOfInterest());
+        }
+        catch (SensorException e)
+        {
+            throw new IOException("Cannot ingest new feature of interest", e);
+        }
         
         return templateID;
     }

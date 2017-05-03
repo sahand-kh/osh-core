@@ -403,7 +403,7 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
                 if (locationOutput.getAverageSamplingPeriod() < 3600.)
                 {
                     OgcProperty<?> linkProp = SWEHelper.newLinkProperty("#" + LOCATION_OUTPUT_ID);
-                    ((AbstractPhysicalProcess)sensorDescription).getPositionList().add(linkProp);
+                    sensorDescription.getPositionList().add(linkProp);
                 }
             }
         }

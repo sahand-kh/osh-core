@@ -42,9 +42,9 @@ import com.vaadin.ui.UI;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since 1.0
  */
+@SuppressWarnings("serial")
 public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> implements IModuleAdminPanel<ICommNetwork<?>>
 {
-    private static final long serialVersionUID = -183320020448726954L;
     private static final String PROP_NAME = "Name";
     private static final String PROP_TYPE = "Type";
     private static final String PROP_ADDRESS = "Address";
@@ -54,12 +54,11 @@ public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> imple
     
     public static class NetworkScanPanel extends GridLayout
     {
-        private static final long serialVersionUID = -1587883711970632124L;
-        ICommNetwork<?> module;
+        transient ICommNetwork<?> module;
+        transient Timer stopTimer =  new Timer();
+        transient TimerTask timerTask;
         Button scanButton;
         Table deviceTable;
-        Timer stopTimer =  new Timer();
-        TimerTask timerTask;
         
         
         public NetworkScanPanel(final ICommNetwork<?> module)
@@ -110,7 +109,6 @@ public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> imple
         }
         
         
-        @SuppressWarnings("serial")
         protected void addScannedDevicesTable()
         {
             // section title
@@ -151,6 +149,7 @@ public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> imple
                         deviceTable.removeAllItems();
                         
                         new Thread() {
+                            @Override
                             public void run()
                             {
                                 module.getDeviceScanner().startScan(new IDeviceScanCallback(){
@@ -161,6 +160,7 @@ public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> imple
                                         if (ui != null)
                                         {
                                             ui.access(new Runnable() {
+                                                @Override
                                                 public void run() {
                                                     String itemId = info.getAddress() + '/' + info.getType();
                                                     Item item;
@@ -194,6 +194,7 @@ public class NetworkAdminPanel extends DefaultModulePanel<ICommNetwork<?>> imple
                                         if (ui != null)
                                         {
                                             ui.access(new Runnable() {
+                                                @Override
                                                 public void run() {
                                                     
                                                     new Notification("Error", msg + '\n' + e.getMessage(), Notification.Type.ERROR_MESSAGE).show(ui.getPage());

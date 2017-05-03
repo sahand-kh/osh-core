@@ -52,13 +52,13 @@ public class BasicSecurityRealm extends AbstractModule<BasicSecurityRealmConfig>
             
             UserConfig user = new UserConfig();
             user.userID = "admin";
-            user.password = "admin";
             user.roles.add("admin");
             config.users.add(user);
         }
     }
     
     
+    @Override
     public void init() throws SensorHubException
     {
         // build user map

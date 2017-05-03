@@ -92,7 +92,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     
     
     @Override
-    public SOSOfferingCapabilities generateCapabilities() throws ServiceException
+    public SOSOfferingCapabilities generateCapabilities() throws SensorHubException
     {
         checkEnabled();
         
@@ -138,7 +138,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
         }
         catch (SensorHubException e)
         {
-            throw new ServiceException("Error while generating capabilities for " + MsgUtils.moduleString(producer), e);
+            throw new ServiceException("Cannot generate capabilities for stream provider " + MsgUtils.moduleString(producer), e);
         }
     }
     
@@ -160,7 +160,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     
     
     @Override
-    public synchronized void updateCapabilities() throws Exception
+    public synchronized void updateCapabilities() throws SensorHubException
     {
         checkEnabled();
         if (caps == null)
@@ -279,7 +279,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     
     
     @Override
-    public AbstractProcess generateSensorMLDescription(double time) throws Exception
+    public AbstractProcess generateSensorMLDescription(double time) throws SensorHubException
     {
         checkEnabled();
         return producer.getCurrentDescription();
@@ -287,7 +287,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     
     
     @Override
-    public Iterator<AbstractFeature> getFoiIterator(final IFoiFilter filter) throws Exception
+    public Iterator<AbstractFeature> getFoiIterator(final IFoiFilter filter) throws SensorHubException
     {
         checkEnabled();
         return FoiUtils.getFilteredFoiIterator(producer, filter);
@@ -297,7 +297,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     /*
      * Checks if provider and underlying sensor are enabled
      */
-    protected void checkEnabled() throws ServiceException
+    protected void checkEnabled() throws SensorHubException
     {
         if (!config.enabled)
             throw new ServiceException("Offering " + config.offeringID + " is disabled");
@@ -343,6 +343,13 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
 
 
     @Override
+    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws SensorHubException
+    {
+        return null;
+    }
+
+
+    @Override
     public void cleanup()
     {
         producer.unregisterListener(this);
@@ -360,12 +367,5 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     public StreamDataProviderConfig getConfig()
     {
         return this.config;
-    }
-
-
-    @Override
-    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws Exception
-    {
-        return null;
     }
 }

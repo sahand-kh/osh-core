@@ -49,8 +49,8 @@ public class MyBeanItem<BeanType> implements Item
     public static final char PROP_SEPARATOR = '.';
     
     
-    BeanType bean;
-    Map<Object, Property<?>> properties = new LinkedHashMap<Object, Property<?>>();
+    final transient BeanType bean;
+    HashMap<Object, Property<?>> properties = new LinkedHashMap<Object, Property<?>>();
     String prefix = NO_PREFIX;
     
     
@@ -96,7 +96,7 @@ public class MyBeanItem<BeanType> implements Item
             }
             catch (Exception e)
             {
-                throw new RuntimeException("Cannot access field " + fullName);
+                throw new IllegalStateException("Cannot access property " + fullName, e);
             }
             
             // case of simple types or enum instances
@@ -126,19 +126,12 @@ public class MyBeanItem<BeanType> implements Item
             // case of maps
             else if (Map.class.isAssignableFrom(fieldType))
             {
-                try
-                {
-                    ParameterizedType mapType = (ParameterizedType)f.getGenericType();
-                    Class<?> eltType = (Class<?>)mapType.getActualTypeArguments()[1];
-                    
-                    Map<String, ?> mapObj = (Map<String, ?>)fieldVal;
-                    MyBeanItemContainer<Object> container = new MyBeanItemContainer<Object>(mapObj, eltType, fullName + PROP_SEPARATOR);
-                    addItemProperty(fullName, new MapProperty(bean, f, container));
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
+                ParameterizedType mapType = (ParameterizedType)f.getGenericType();
+                Class<?> eltType = (Class<?>)mapType.getActualTypeArguments()[1];
+                
+                Map<String, ?> mapObj = (Map<String, ?>)fieldVal;
+                MyBeanItemContainer<Object> container = new MyBeanItemContainer<Object>(mapObj, eltType, fullName + PROP_SEPARATOR);
+                addItemProperty(fullName, new MapProperty(bean, f, container));
             }
             
             // case of nested objects
@@ -209,7 +202,7 @@ public class MyBeanItem<BeanType> implements Item
         }
         catch (IntrospectionException e)
         {
-            throw new RuntimeException(e.getMessage());
+            throw new IllegalStateException("Cannot introspect bean object", e);
         }
     }
 
@@ -261,8 +254,6 @@ public class MyBeanItem<BeanType> implements Item
     @Override
     public String toString()
     {
-        if (bean == null)
-            return null;
         return bean.toString();
     }
 }

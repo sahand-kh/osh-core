@@ -72,6 +72,7 @@ public class ProcessingEvent extends Event<Type>
     }
 
 
+    @Override
     public Type getType()
     {
         return type;

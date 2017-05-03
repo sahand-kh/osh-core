@@ -9,7 +9,8 @@ rootProject.allprojects {
 
 dependencies {
   compile project(':sensorhub-core')
-  compile project(':ows-framework-bindings')
+  compile project(':ogc-services-sos')
+  compile project(':ogc-services-sps')
    
   compile('org.n52.amused:amused-core:1.0.0') {
     // excludes are needed here so the generated pom contains them too

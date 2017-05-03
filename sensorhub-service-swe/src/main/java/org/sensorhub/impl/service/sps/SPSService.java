@@ -71,7 +71,6 @@ public class SPSService extends AbstractModule<SPSServiceConfig> implements ISer
     {
         // deploy servlet
         servlet = new SPSServlet(config, (SPSSecurity)this.securityHandler, getLogger());
-        servlet.start();
         deploy();
         
         setState(ModuleState.STARTED);        
@@ -139,7 +138,7 @@ public class SPSService extends AbstractModule<SPSServiceConfig> implements ISer
                 {
                     start();
                 }
-                catch (Throwable ex)
+                catch (Exception ex)
                 {
                     reportError("SPS Service could not start", ex);
                 }

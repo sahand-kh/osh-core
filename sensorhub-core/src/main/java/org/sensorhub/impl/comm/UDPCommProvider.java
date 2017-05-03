@@ -47,11 +47,6 @@ public class UDPCommProvider extends AbstractModule<UDPCommProviderConfig> imple
     OutputStream os;
     
     
-    public UDPCommProvider() 
-    {
-    }
-    
-    
     @Override
     public InputStream getInputStream() throws IOException
     {
@@ -89,12 +84,13 @@ public class UDPCommProvider extends AbstractModule<UDPCommProviderConfig> imple
             }
             
             SocketAddress remoteAddr = new InetSocketAddress(config.remoteHost, remotePort);
-            channel = DatagramChannel.open().bind(localAddr);
+            channel = DatagramChannel.open();
+            channel.bind(localAddr);
             channel.connect(remoteAddr);
             is = Channels.newInputStream(channel);
             os = Channels.newOutputStream(channel);
         }
-        catch (IOException e)
+        catch (Exception e)
         {
             throw new SensorHubException("Cannot setup UDP socket between local address " + config.localPort +
                                          " and remote host " + config.remoteHost + ":" + config.remotePort, e);
@@ -111,12 +107,14 @@ public class UDPCommProvider extends AbstractModule<UDPCommProviderConfig> imple
         }
         catch (IOException e)
         {
+            log.error("Cannot close datagram channel", e);
         }        
     }
 
 
     @Override
     public void cleanup() throws SensorHubException
-    {        
+    {
+        // nothing to clean
     }
 }

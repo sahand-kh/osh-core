@@ -78,7 +78,7 @@ public class TimeRangePermission extends AbstractPermission implements IParamete
         }
         catch (CloneNotSupportedException e)
         {
-            return null;
+            throw new IllegalStateException(e);
         }
     }
 }

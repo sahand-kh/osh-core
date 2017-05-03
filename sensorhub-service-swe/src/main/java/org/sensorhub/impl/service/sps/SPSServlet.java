@@ -14,10 +14,8 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sps;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,11 +37,9 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
-import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleConfig;
-import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.security.ISecurityManager;
 import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
@@ -57,6 +53,7 @@ import org.vast.cdm.common.DataStreamParser;
 import org.vast.cdm.common.DataStreamWriter;
 import org.vast.data.DataBlockList;
 import org.vast.ows.GetCapabilitiesRequest;
+import org.vast.ows.OWSException;
 import org.vast.ows.OWSExceptionReport;
 import org.vast.ows.OWSRequest;
 import org.vast.ows.server.OWSServlet;
@@ -64,7 +61,6 @@ import org.vast.ows.sps.*;
 import org.vast.ows.sps.StatusReport.RequestStatus;
 import org.vast.ows.sps.StatusReport.TaskStatus;
 import org.vast.ows.swe.DescribeSensorRequest;
-import org.vast.ows.util.PostRequestFilter;
 import org.vast.sensorML.SMLUtils;
 import org.vast.swe.SWEHelper;
 import org.vast.util.DateTime;
@@ -90,24 +86,20 @@ public class SPSServlet extends OWSServlet
     private static final String TASK_ID_PREFIX = "urn:sensorhub:sps:task:";
     private static final String FEASIBILITY_ID_PREFIX = "urn:sensorhub:sps:feas:";
     
-    SPSServiceConfig config;
-    SPSSecurity securityHandler;
-    Logger log;
-    String endpointUrl;
-    WebSocketServletFactory factory = new WebSocketServerFactory();
-    ReentrantReadWriteLock capabilitiesLock = new ReentrantReadWriteLock();
-    SPSServiceCapabilities capabilities;
-    Map<String, ISPSConnector> connectors = new HashMap<String, ISPSConnector>(); // key is procedure ID
-    Map<String, SPSOfferingCapabilities> offeringCaps = new HashMap<String, SPSOfferingCapabilities>(); // key is procedure ID
-    Map<String, TaskingSession> transmitSessionsMap = new HashMap<String, TaskingSession>();
-    Map<String, TaskingSession> receiveSessionsMap = new HashMap<String, TaskingSession>();
-    IEventHandler eventHandler;
+    final transient SPSServiceConfig config;
+    final transient SPSSecurity securityHandler;
+    final transient Logger log;
+    final transient WebSocketServletFactory factory = new WebSocketServerFactory();
+    final transient ReentrantReadWriteLock capabilitiesLock = new ReentrantReadWriteLock();
+    final transient SPSServiceCapabilities capabilities = new SPSServiceCapabilities();
+    final transient Map<String, ISPSConnector> connectors = new HashMap<String, ISPSConnector>(); // key is procedure ID
+    final transient Map<String, SPSOfferingCapabilities> offeringCaps = new HashMap<String, SPSOfferingCapabilities>(); // key is procedure ID
+    final transient Map<String, TaskingSession> transmitSessionsMap = new HashMap<String, TaskingSession>();
+    final transient Map<String, TaskingSession> receiveSessionsMap = new HashMap<String, TaskingSession>();
         
-    SMLUtils smlUtils = new SMLUtils(SMLUtils.V2_0);
-    ITaskDB taskDB;
+    final transient SMLUtils smlUtils = new SMLUtils(SMLUtils.V2_0);
+    final transient ITaskDB taskDB = new InMemoryTaskDB();
     //SPSNotificationSystem notifSystem;
-    
-    ModuleState state;
     
     
     static class TaskingSession
@@ -121,19 +113,10 @@ public class SPSServlet extends OWSServlet
     
     public SPSServlet(SPSServiceConfig config, SPSSecurity securityHandler, Logger log)
     {
+        super(new SPSUtils());
         this.config = config;
         this.securityHandler = securityHandler;
         this.log = log;
-        this.owsUtils = new SPSUtils();
-    }
-    
-    
-    protected void start() throws SensorHubException
-    {
-        this.taskDB = new InMemoryTaskDB();
-        
-        // pre-generate capabilities
-        endpointUrl = null;
         generateCapabilities();       
     }
     
@@ -160,8 +143,7 @@ public class SPSServlet extends OWSServlet
     {
         connectors.clear();
         offeringCaps.clear();
-        capabilities = new SPSServiceCapabilities();
-        
+                
         // get main capabilities info from config
         CapabilitiesInfo serviceInfo = config.ogcCapabilitiesInfo;
         capabilities.getIdentification().setTitle(serviceInfo.title);
@@ -205,13 +187,28 @@ public class SPSServlet extends OWSServlet
                     // instantiate provider factories and map them to offering URIs
                     ISPSConnector connector = connectorConf.getConnector(this);
                     connectors.put(connector.getProcedureID(), connector);
-                    showConnectorCaps(connector);
+                    if (connector.isEnabled())
+                        showConnectorCaps(connector);
                 }
                 catch (Exception e)
                 {
                     log.error("Error while initializing connector " + connectorConf.offeringID, e);
                 }
             }
+        }
+    }
+    
+    
+    protected SPSOfferingCapabilities generateCapabilities(ISPSConnector connector) throws IOException
+    {
+        try
+        {
+            SPSOfferingCapabilities caps = connector.generateCapabilities();            
+            return caps;
+        }
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot generate capabilities", e);
         }
     }
     
@@ -225,7 +222,7 @@ public class SPSServlet extends OWSServlet
             capabilitiesLock.writeLock().lock();
             
             // generate offering metadata
-            SPSOfferingCapabilities offCaps = connector.generateCapabilities();
+            SPSOfferingCapabilities offCaps = generateCapabilities(connector);
             String procedureID = offCaps.getMainProcedure();
             
             // update offering if it was already advertised
@@ -252,7 +249,7 @@ public class SPSServlet extends OWSServlet
         }
         catch (Exception e)
         {
-            log.error("Error while generating offering " + config.offeringID, e);
+            log.error("Cannot generate offering " + config.offeringID, e);
         }
         finally
         {
@@ -313,7 +310,7 @@ public class SPSServlet extends OWSServlet
     
     
     @Override
-    protected OWSRequest parseRequest(HttpServletRequest req, HttpServletResponse resp, boolean post) throws Exception
+    protected OWSRequest parseRequest(HttpServletRequest req, HttpServletResponse resp, boolean isXmlRequest) throws OWSException
     {
         // set current authentified user
         if (req.getRemoteUser() != null)
@@ -326,55 +323,7 @@ public class SPSServlet extends OWSServlet
         
         try
         {
-            OWSRequest owsRequest;
-            
-            if (post)
-            {
-                InputStream xmlRequest = new PostRequestFilter(new BufferedInputStream(req.getInputStream()));
-                DOMHelper dom = new DOMHelper(xmlRequest, false);            
-                Element requestElt = dom.getBaseElement();
-                
-                // detect and skip SOAP envelope if present
-                String soapVersion = getSoapVersion(dom);
-                if (soapVersion != null)
-                    requestElt = getSoapBody(dom);
-                
-                // case of tasking request, need to get tasking params for the selected procedure
-                if (isTaskingRequest(requestElt))
-                {
-                    String procID = dom.getElementValue(requestElt, "procedure");
-                    SPSOfferingCapabilities offering = offeringCaps.get(procID);
-                    if (offering == null)
-                        throw new SPSException(SPSException.invalid_param_code, "procedure", procID);
-                    DescribeTaskingResponse paramDesc = offering.getParametersDescription();
-                    
-                    // use full tasking params or updatable subset
-                    DataComponent taskingParams;
-                    if (requestElt.getLocalName().equals("Update"))
-                        taskingParams = paramDesc.getUpdatableParameters();
-                    else
-                        taskingParams = paramDesc.getTaskingParameters();
-                    
-                    owsRequest = ((SPSUtils)owsUtils).readSpsRequest(dom, requestElt, taskingParams);
-                }
-                
-                // case of normal request
-                else
-                    owsRequest = owsUtils.readXMLQuery(dom, requestElt);
-                
-                // keep http objects in request
-                if (owsRequest != null)
-                {
-                    if (soapVersion != null)
-                        owsRequest.setSoapVersion(soapVersion);
-                    owsRequest.setHttpRequest(req);
-                    owsRequest.setHttpResponse(resp);
-                }
-            }
-            else
-            {
-                owsRequest = super.parseRequest(req, resp, post);
-            }
+            OWSRequest owsRequest = super.parseRequest(req, resp, isXmlRequest);
             
             // detect websocket request
             if (factory.isUpgradeRequest(req, resp))
@@ -394,6 +343,35 @@ public class SPSServlet extends OWSServlet
     }
     
     
+    /*
+     * Overriden because we need additional info to parse tasking request
+     */
+    @Override
+    protected OWSRequest parseRequest(DOMHelper dom, Element requestElt) throws OWSException
+    {
+        // case of tasking request, need to get tasking params for the selected procedure
+        if (isTaskingRequest(requestElt))
+        {
+            String procID = dom.getElementValue(requestElt, "procedure");
+            SPSOfferingCapabilities offering = offeringCaps.get(procID);
+            if (offering == null)
+                throw new SPSException(SPSException.invalid_param_code, "procedure", procID);
+            DescribeTaskingResponse paramDesc = offering.getParametersDescription();
+            
+            // use full tasking params or updatable subset
+            DataComponent taskingParams;
+            if (requestElt.getLocalName().equals("Update"))
+                taskingParams = paramDesc.getUpdatableParameters();
+            else
+                taskingParams = paramDesc.getTaskingParameters();
+            
+            return new SPSUtils().readSpsRequest(dom, requestElt, taskingParams);
+        }
+        else
+            return super.parseRequest(dom, requestElt);
+    }
+    
+    
     protected void acceptWebSocket(final OWSRequest owsReq, final WebSocketListener socket) throws IOException
     {
         factory.acceptWebSocket(new WebSocketCreator() {
@@ -407,7 +385,7 @@ public class SPSServlet extends OWSServlet
     
     
     @Override
-    protected void handleRequest(OWSRequest request) throws Exception
+    protected void handleRequest(OWSRequest request) throws IOException
     {
         if (request instanceof GetCapabilitiesRequest)
             handleRequest((GetCapabilitiesRequest)request);
@@ -464,7 +442,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void handleRequest(GetCapabilitiesRequest request) throws Exception
+    protected void handleRequest(GetCapabilitiesRequest request) throws IOException
     {
         /*// check that version 2.0.0 is supported by client
         if (!request.getAcceptedVersions().isEmpty())
@@ -481,22 +459,19 @@ public class SPSServlet extends OWSServlet
         securityHandler.checkPermission(securityHandler.sps_read_caps);
         
         // update operation URLs
-        if (endpointUrl == null)
+        try
         {
-            try
-            {
-                capabilitiesLock.writeLock().lock();
-            
-                endpointUrl = request.getHttpRequest().getRequestURL().toString();
-                for (Entry<String, String> op: capabilities.getGetServers().entrySet())
-                    capabilities.getGetServers().put(op.getKey(), endpointUrl);
-                for (Entry<String, String> op: capabilities.getPostServers().entrySet())
-                    capabilities.getPostServers().put(op.getKey(), endpointUrl);
-            }
-            finally
-            {            
-                capabilitiesLock.writeLock().unlock();
-            }
+            capabilitiesLock.writeLock().lock();
+        
+            String endpointUrl = request.getHttpRequest().getRequestURL().toString();
+            for (Entry<String, String> op: capabilities.getGetServers().entrySet())
+                capabilities.getGetServers().put(op.getKey(), endpointUrl);
+            for (Entry<String, String> op: capabilities.getPostServers().entrySet())
+                capabilities.getPostServers().put(op.getKey(), endpointUrl);
+        }
+        finally
+        {            
+            capabilitiesLock.writeLock().unlock();
         }
             
         try
@@ -511,7 +486,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void handleRequest(DescribeSensorRequest request) throws Exception
+    protected void handleRequest(DescribeSensorRequest request) throws IOException
     {
         String procID = request.getProcedureID();
         
@@ -524,12 +499,23 @@ public class SPSServlet extends OWSServlet
         securityHandler.checkPermission(getOfferingID(procID), securityHandler.sps_read_sensor);
         
         // serialize and send SensorML description
-        OutputStream os = new BufferedOutputStream(request.getResponseStream());
-        smlUtils.writeProcess(os, connector.generateSensorMLDescription(Double.NaN), true);
+        try
+        {
+            OutputStream os = new BufferedOutputStream(request.getResponseStream());
+            smlUtils.writeProcess(os, connector.generateSensorMLDescription(Double.NaN), true);
+        }
+        catch (SensorHubException e)
+        {
+            throw new IOException("Cannot generate SensorML document", e);
+        }
+        catch (IOException e)
+        {
+            throw new IOException(SEND_RESPONSE_ERROR_MSG, e);
+        }
     }
     
     
-    protected void handleRequest(DescribeTaskingRequest request) throws Exception
+    protected void handleRequest(DescribeTaskingRequest request) throws IOException
     {
         String procID = request.getProcedureID();
         SPSOfferingCapabilities offering = offeringCaps.get(procID);
@@ -544,7 +530,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void handleRequest(GetStatusRequest request) throws Exception
+    protected void handleRequest(GetStatusRequest request) throws IOException
     {
         ITask task = findTask(request.getTaskID());
         StatusReport status = task.getStatusReport();
@@ -561,7 +547,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected GetFeasibilityResponse handleRequest(GetFeasibilityRequest request) throws Exception
+    protected GetFeasibilityResponse handleRequest(GetFeasibilityRequest request) throws IOException
     {               
         /*GetFeasibilityResponse gfResponse = new GetFeasibilityResponse();
         
@@ -599,7 +585,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void handleRequest(SubmitRequest request) throws Exception
+    protected void handleRequest(SubmitRequest request) throws IOException
     {
         // retrieve connector instance
         String procID = request.getProcedureID();
@@ -618,10 +604,17 @@ public class SPSServlet extends OWSServlet
         // synchronize here so no concurrent commands are sent to same sensor
         synchronized (conn)
         {
-            DataBlockList dataBlockList = (DataBlockList)request.getParameters().getData();
-            Iterator<DataBlock> it = dataBlockList.blockIterator();
-            while (it.hasNext())
-                conn.sendSubmitData(newTask, it.next());        
+            try
+            {
+                DataBlockList dataBlockList = (DataBlockList)request.getParameters().getData();
+                Iterator<DataBlock> it = dataBlockList.blockIterator();
+                while (it.hasNext())
+                    conn.sendSubmitData(newTask, it.next());
+            }
+            catch (SensorHubException e)
+            {
+                throw new IOException("Cannot send command to sensor " + procID, e);
+            }
         }
         
         // add report and send response
@@ -638,46 +631,8 @@ public class SPSServlet extends OWSServlet
         sendResponse(request, sResponse);
     }
     
-
-    protected void handleRequest(UpdateRequest request) throws Exception
-    {
-        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
-    }
     
-    
-    protected void handleRequest(CancelRequest request) throws Exception
-    {
-        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
-    }
-    
-
-    protected void handleRequest(ReserveRequest request) throws Exception
-    {
-        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
-    }
-    
-    
-    protected void handleRequest(ConfirmRequest request) throws Exception
-    {
-        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
-    }
-    
-    
-    protected void handleRequest(DescribeResultAccessRequest request) throws Exception
-    {
-        /*ITask task = findTask(request.getTaskID());
-        
-        DescribeResultAccessResponse resp = new DescribeResultAccessResponse();     
-        StatusReport status = task.getStatusReport();
-        
-        // TODO DescribeResultAccess
-        
-        return resp;*/
-        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
-    }
-    
-    
-    protected synchronized void handleRequest(DirectTaskingRequest request) throws Exception
+    protected synchronized void handleRequest(DirectTaskingRequest request) throws IOException
     {
         // retrieve connector instance
         String procID = request.getProcedureID();
@@ -728,7 +683,7 @@ public class SPSServlet extends OWSServlet
     
     
     // we dispatch request depending if it's for receiving or transmitting commands
-    protected synchronized void handleRequest(ConnectTaskingRequest request) throws Exception
+    protected synchronized void handleRequest(ConnectTaskingRequest request) throws IOException
     {
         String sessionID = request.getSessionID();
         TaskingSession session;
@@ -753,7 +708,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void startReceiveTaskingStream(TaskingSession session, ConnectTaskingRequest request) throws Exception
+    protected void startReceiveTaskingStream(TaskingSession session, ConnectTaskingRequest request) throws IOException
     {
         try
         {
@@ -789,6 +744,44 @@ public class SPSServlet extends OWSServlet
         {
             
         }
+    }
+    
+
+    protected void handleRequest(UpdateRequest request) throws IOException
+    {
+        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
+    }
+    
+    
+    protected void handleRequest(CancelRequest request) throws IOException
+    {
+        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
+    }
+    
+
+    protected void handleRequest(ReserveRequest request) throws IOException
+    {
+        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
+    }
+    
+    
+    protected void handleRequest(ConfirmRequest request) throws IOException
+    {
+        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
+    }
+    
+    
+    protected void handleRequest(DescribeResultAccessRequest request) throws IOException
+    {
+        /*ITask task = findTask(request.getTaskID());
+        
+        DescribeResultAccessResponse resp = new DescribeResultAccessResponse();     
+        StatusReport status = task.getStatusReport();
+        
+        // TODO DescribeResultAccess
+        
+        return resp;*/
+        throw new SPSException(SPSException.unsupported_op_code, request.getOperation());
     }
     
     
@@ -873,20 +866,20 @@ public class SPSServlet extends OWSServlet
     // Transactional Operations //
     //////////////////////////////    
     
-    protected void handleRequest(InsertSensorRequest request) throws Exception
+    protected void handleRequest(InsertSensorRequest request) throws IOException
     {
+        checkTransactionalSupport(request);
+        
+        // security check
+        securityHandler.checkPermission(securityHandler.sps_insert_sensor);
+        
+        // check query parameters
+        OWSExceptionReport report = new OWSExceptionReport();
+        TransactionUtils.checkSensorML(request.getProcedureDescription(), report);
+        report.process();
+        
         try
         {
-            checkTransactionalSupport(request);
-            
-            // security check
-            securityHandler.checkPermission(securityHandler.sps_insert_sensor);
-            
-            // check query parameters
-            OWSExceptionReport report = new OWSExceptionReport();
-            TransactionUtils.checkSensorML(request.getProcedureDescription(), report);
-            report.process();
-                        
             // get sensor UID
             String sensorUID = request.getProcedureDescription().getUniqueIdentifier();
             log.info("Registering new sensor " + sensorUID);
@@ -944,14 +937,14 @@ public class SPSServlet extends OWSServlet
             resp.setAssignedProcedureId(sensorUID);
             sendResponse(request, resp);
         }
-        finally
+        catch (SensorHubException e)
         {
-            
+            throw new IOException("", e);
         }
     }
     
     
-    protected void handleRequest(InsertTaskingTemplateRequest request) throws Exception
+    protected void handleRequest(InsertTaskingTemplateRequest request) throws IOException
     {
         try
         {
@@ -977,25 +970,8 @@ public class SPSServlet extends OWSServlet
                 newSession.encoding = request.getEncoding();
                 transmitSessionsMap.put(templateID, newSession);
                                 
-                // re-generate capabilities
-                try
-                {
-                    capabilitiesLock.writeLock().lock();
-                    SPSOfferingCapabilities newCaps = connector.generateCapabilities();
-                    int oldIndex = 0;
-                    for (SPSOfferingCapabilities offCaps: capabilities.getLayers())
-                    {
-                        if (offCaps.getMainProcedure().equals(procID))
-                            break; 
-                        oldIndex++;
-                    }
-                    capabilities.getLayers().set(oldIndex, newCaps);
-                    offeringCaps.put(procID, newCaps);
-                }
-                finally
-                {
-                    capabilitiesLock.writeLock().unlock();
-                }
+                // update offering capabilities
+                showConnectorCaps(connector);
             }
             
             // build and send response
@@ -1003,81 +979,88 @@ public class SPSServlet extends OWSServlet
             resp.setSessionID(templateID);
             sendResponse(request, resp);
         }
-        finally
+        catch (SensorHubException e)
         {
-            
+            throw new SPSException(SPSException.invalid_param_code, "TaskingTemplate", e);
         }
     }
     
     
-    protected void startTransmitTaskingStream(TaskingSession session, ConnectTaskingRequest request) throws Exception
+    protected void startTransmitTaskingStream(TaskingSession session, ConnectTaskingRequest request) throws IOException
     {
+        checkTransactionalSupport(request);
+        
+        // retrieve connector
+        String procID = session.procID;
+        ISPSTransactionalConnector conn = getTransactionalConnector(procID);
+        
+        // security check
+        securityHandler.checkPermission(getOfferingID(procID), securityHandler.sps_connect_tasking);
+                    
+        // retrieve selected template
+        String sessionID;
+        Template template;
         try
         {
-            checkTransactionalSupport(request);
-            
-            // retrieve connector
-            String procID = session.procID;
-            ISPSTransactionalConnector conn = getTransactionalConnector(procID);
-            
-            // security check
-            securityHandler.checkPermission(getOfferingID(procID), securityHandler.sps_connect_tasking);
-                        
-            // prepare writer for selected template
-            String sessionID = request.getSessionID();
-            Template template = conn.getTemplate(sessionID);
-            final DataStreamWriter writer = SWEHelper.createDataWriter(template.encoding);
-            writer.setDataComponents(template.component);
-            
-            // handle cases of websocket and persistent HTTP
-            if (isWebSocketRequest(request))
-            {
-                SPSWebSocketOut ws = new SPSWebSocketOut(writer, log);
-                acceptWebSocket(request, ws);
-                conn.registerCallback(sessionID, ws);
-            }
-            else
-            {
-                final AsyncContext aCtx = request.getHttpRequest().startAsync(request.getHttpRequest(), request.getHttpResponse());
-                writer.setOutput(new BufferedOutputStream(request.getResponseStream()));
-                
-                conn.registerCallback(sessionID, new ITaskingCallback() {
-                    public void onCommandReceived(DataBlock cmdData)
-                    {
-                        try
-                        {
-                            writer.write(cmdData);
-                            writer.flush();
-                        }
-                        catch (IOException e)
-                        {
-                            log.error("Error while sending command message to connected device. Closing stream.");
-                            onClose();
-                        }
-                    }
-
-                    public void onClose()
-                    {
-                        try
-                        {
-                            writer.close();
-                            aCtx.complete();
-                        }
-                        catch (IOException e)
-                        {
-                        }
-                    }
-                });
-            }
+            sessionID = request.getSessionID();
+            template = conn.getTemplate(sessionID);
         }
-        finally
+        catch (SensorHubException e)
         {
+            throw new IllegalStateException("Invalid session", e);
+        }
+        
+        // prepare writer
+        final DataStreamWriter writer = SWEHelper.createDataWriter(template.encoding);
+        writer.setDataComponents(template.component);
+        
+        // handle cases of websocket and persistent HTTP
+        if (isWebSocketRequest(request))
+        {
+            SPSWebSocketOut ws = new SPSWebSocketOut(writer, log);
+            acceptWebSocket(request, ws);
+            conn.registerCallback(sessionID, ws);
+        }
+        else
+        {
+            final AsyncContext aCtx = request.getHttpRequest().startAsync(request.getHttpRequest(), request.getHttpResponse());
+            writer.setOutput(new BufferedOutputStream(request.getResponseStream()));
             
+            conn.registerCallback(sessionID, new ITaskingCallback() {
+                @Override
+                public void onCommandReceived(DataBlock cmdData)
+                {
+                    try
+                    {
+                        writer.write(cmdData);
+                        writer.flush();
+                    }
+                    catch (IOException e)
+                    {
+                        log.error("Cannot send command message to connected device. Closing stream.", e);
+                        onClose();
+                    }
+                }
+
+                @Override
+                public void onClose()
+                {
+                    try
+                    {
+                        writer.close();
+                        aCtx.complete();
+                    }
+                    catch (IOException e)
+                    {
+                        log.trace("Cannot close tasking stream", e);
+                    }
+                }
+            });
         }
     }
     
     
-    protected ISPSConnector getConnector(String procedureID) throws Exception
+    protected ISPSConnector getConnector(String procedureID) throws OWSException
     {
         try
         {
@@ -1096,7 +1079,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected ISPSTransactionalConnector getTransactionalConnector(String procedureID) throws Exception
+    protected ISPSTransactionalConnector getTransactionalConnector(String procedureID) throws OWSException
     {
         ISPSConnector connector = getConnector(procedureID);
         
@@ -1113,7 +1096,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void checkQueryProcedureFormat(String procedureID, String format, OWSExceptionReport report) throws SPSException
+    protected void checkQueryProcedureFormat(String procedureID, String format, OWSExceptionReport report) throws OWSException
     {
         // ok if default format can be used
         if (format == null)
@@ -1125,7 +1108,7 @@ public class SPSServlet extends OWSServlet
     }
     
     
-    protected void checkTransactionalSupport(OWSRequest request) throws Exception
+    protected void checkTransactionalSupport(OWSRequest request) throws OWSException
     {
         if (!config.enableTransactional)
             throw new SPSException(SPSException.invalid_param_code, "request", request.getOperation(), request.getOperation() + " operation is not supported on this endpoint"); 

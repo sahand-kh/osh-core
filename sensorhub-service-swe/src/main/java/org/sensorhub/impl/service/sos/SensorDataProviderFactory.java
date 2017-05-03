@@ -15,9 +15,11 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl.service.sos;
 
 import net.opengis.sensorml.v20.AbstractProcess;
+import java.io.IOException;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.ISensorModule;
+import org.sensorhub.api.service.ServiceException;
 import org.sensorhub.impl.SensorHub;
 
 
@@ -43,7 +45,7 @@ public class SensorDataProviderFactory extends StreamDataProviderFactory<ISensor
     
     
     @Override
-    public AbstractProcess generateSensorMLDescription(double time) throws Exception
+    public AbstractProcess generateSensorMLDescription(double time) throws SensorHubException
     {
         checkEnabled();
         return producer.getCurrentDescription();
@@ -51,9 +53,17 @@ public class SensorDataProviderFactory extends StreamDataProviderFactory<ISensor
 
     
     @Override
-    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws Exception
+    public ISOSDataProvider getNewDataProvider(SOSDataFilter filter) throws SensorHubException
     {
         checkEnabled();
-        return new SensorDataProvider(producer, (SensorDataProviderConfig)config, filter);
+        
+        try
+        {
+            return new SensorDataProvider(producer, (SensorDataProviderConfig)config, filter);
+        }
+        catch (IOException e)
+        {
+            throw new ServiceException("Cannot instantiate sensor provider", e);
+        }
     }
 }

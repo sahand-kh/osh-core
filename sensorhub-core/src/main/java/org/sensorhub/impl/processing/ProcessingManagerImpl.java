@@ -71,22 +71,7 @@ public class ProcessingManagerImpl implements IProcessingManager
     @Override
     public Collection<ModuleConfig> getAvailableModules()
     {
-        ArrayList<ModuleConfig> configuredProcesses = new ArrayList<ModuleConfig>();
-        
-        // retrieve all modules implementing ISensorInterface
-        for (ModuleConfig config: moduleRegistry.getAvailableModules())
-        {
-            try
-            {
-                if (IProcessModule.class.isAssignableFrom(Class.forName(config.moduleClass)))
-                    configuredProcesses.add(config);
-            }
-            catch (Exception e)
-            {
-            }
-        }
-        
-        return configuredProcesses;
+        return moduleRegistry.getAvailableModules(IProcessModule.class);        
     }
 
 

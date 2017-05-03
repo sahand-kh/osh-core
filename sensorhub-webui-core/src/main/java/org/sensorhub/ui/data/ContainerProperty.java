@@ -22,8 +22,8 @@ import java.util.Collection;
 @SuppressWarnings({ "serial", "rawtypes" })
 public class ContainerProperty extends BaseProperty<MyBeanItemContainer>
 {
-    Object instance;
-    MyBeanItemContainer container;
+    transient Object instance;
+    transient MyBeanItemContainer container;
     
 
     public ContainerProperty(Object instance, Field f, MyBeanItemContainer container)
@@ -42,7 +42,7 @@ public class ContainerProperty extends BaseProperty<MyBeanItemContainer>
 
 
     @Override
-    public void setValue(MyBeanItemContainer newValue) throws ReadOnlyException
+    public void setValue(MyBeanItemContainer newValue)
     {
         try
         {
@@ -64,7 +64,7 @@ public class ContainerProperty extends BaseProperty<MyBeanItemContainer>
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Error while updating collection", e);
+            throw new IllegalStateException("Error while updating collection", e);
         }
     }
 

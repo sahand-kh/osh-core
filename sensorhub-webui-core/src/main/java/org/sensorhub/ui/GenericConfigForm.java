@@ -57,7 +57,6 @@ import com.vaadin.data.fieldgroup.FieldGroup.CommitHandler;
 import com.vaadin.data.validator.IntegerRangeValidator;
 import com.vaadin.data.validator.StringLengthValidator;
 import com.vaadin.server.FontAwesome;
-import com.vaadin.server.Page;
 import com.vaadin.shared.ui.MarginInfo;
 import com.vaadin.shared.ui.datefield.Resolution;
 import com.vaadin.ui.AbstractComponent;
@@ -76,7 +75,6 @@ import com.vaadin.ui.GridLayout;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.ListSelect;
-import com.vaadin.ui.Notification;
 import com.vaadin.ui.PasswordField;
 import com.vaadin.ui.TabSheet;
 import com.vaadin.ui.TabSheet.CloseHandler;
@@ -101,22 +99,25 @@ import com.vaadin.ui.Button.ClickEvent;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 1, 2014
  */
+@SuppressWarnings("serial")
 public class GenericConfigForm extends VerticalLayout implements IModuleConfigForm, UIConstants
 {
-    private static final long serialVersionUID = 3491784756273165916L;
+    private static final String FIELD_GEN_ERROR = "Cannot generate UI field for ";
+    private static final String ADD_ITEM_ERROR = "Cannot add new item to ";
+    private static final String CHANGE_OBJECT_ERROR = "Cannot change object type of ";
     protected static final String MAIN_CONFIG = "General";
     
-    protected List<Field<?>> labels = new ArrayList<Field<?>>();
-    protected List<Field<?>> textBoxes = new ArrayList<Field<?>>();
-    protected List<Field<?>> listBoxes = new ArrayList<Field<?>>();
-    protected List<Field<?>> numberBoxes = new ArrayList<Field<?>>();
-    protected List<Field<?>> checkBoxes = new ArrayList<Field<?>>();
-    protected List<Component> subForms = new ArrayList<Component>();
+    protected transient List<Field<?>> labels = new ArrayList<Field<?>>();
+    protected transient List<Field<?>> textBoxes = new ArrayList<Field<?>>();
+    protected transient List<Field<?>> listBoxes = new ArrayList<Field<?>>();
+    protected transient List<Field<?>> numberBoxes = new ArrayList<Field<?>>();
+    protected transient List<Field<?>> checkBoxes = new ArrayList<Field<?>>();
+    protected transient List<Component> subForms = new ArrayList<Component>();
     
-    protected List<IModuleConfigForm> allForms = new ArrayList<IModuleConfigForm>();
-    protected FieldGroup fieldGroup;
-    protected boolean tabJustRemoved;
-    protected IModuleConfigForm parentForm;
+    protected transient List<IModuleConfigForm> allForms = new ArrayList<IModuleConfigForm>();
+    protected transient FieldGroup fieldGroup;
+    protected transient boolean tabJustRemoved;
+    protected transient IModuleConfigForm parentForm;
     
     
     @Override
@@ -198,12 +199,12 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                     }
                     catch (SourceException e)
                     {
-                        //AdminUIModule.log.error("Error while generating UI field for property " + propId, e);
+                        AdminUIModule.getInstance().getLogger().trace(FIELD_GEN_ERROR + propId, e);
                         continue;
                     }
                     catch (Exception e)
                     {
-                        AdminUIModule.log.error("Error while generating UI field for property " + propId);
+                        AdminUIModule.getInstance().getLogger().error(FIELD_GEN_ERROR + propId, e);
                         continue;
                     }
                     
@@ -372,7 +373,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     protected Field<Object> makeModuleSelectField(Field<Object> field, final Class<?> moduleType)
     {
         field = new FieldWrapper<Object>(field) {
-            private static final long serialVersionUID = -992750405944982226L;
+            @Override
             protected Component initContent()
             {
                 HorizontalLayout layout = new HorizontalLayout();
@@ -391,11 +392,12 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 layout.addComponent(selectBtn);
                 layout.setComponentAlignment(selectBtn, Alignment.MIDDLE_LEFT);
                 selectBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         // show popup to select among available module types
                         ModuleInstanceSelectionPopup popup = new ModuleInstanceSelectionPopup(moduleType, new ModuleInstanceSelectionCallback() {
+                            @Override
                             public void onSelected(IModule module)
                             {
                                 innerField.setReadOnly(false);
@@ -419,7 +421,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     protected Field<Object> makeAddressSelectField(Field<Object> field, final NetworkType addressType)
     {
         field = new FieldWrapper<Object>(field) {
-            private static final long serialVersionUID = 52555234915457459L;
+            @Override
             protected Component initContent()
             {
                 HorizontalLayout layout = new HorizontalLayout();
@@ -437,7 +439,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 layout.addComponent(selectBtn);
                 layout.setComponentAlignment(selectBtn, Alignment.MIDDLE_LEFT);
                 selectBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         // error if no networks are available
@@ -453,13 +455,13 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                         }
                         if (!netAvailable)
                         {
-                            Page page = getUI().getPage();
-                            new Notification("Error", "No network scanner available for " + addressType + " address lookup", Notification.Type.ERROR_MESSAGE).show(page);
+                            DisplayUtils.showErrorPopup("No network scanner available for " + addressType + " address lookup", null);
                             return;
                         }
                         
                         // show popup to select among available module types
                         NetworkAddressSelectionPopup popup = new NetworkAddressSelectionPopup(addressType, new AddressSelectionCallback() {
+                            @Override
                             public void onSelected(String address)
                             {
                                 innerField.setReadOnly(false);
@@ -483,8 +485,8 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     protected Field<String> makePasswordField(Field<String> field)
     {
         field = new FieldWrapper<String>(field) {
-            private static final long serialVersionUID = -992750458965982226L;
             private PasswordField passwordField;
+            @Override
             protected Component initContent()
             {
                 final HorizontalLayout layout = new HorizontalLayout();
@@ -509,7 +511,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 layout.addComponent(showBtn);
                 layout.setComponentAlignment(showBtn, Alignment.MIDDLE_LEFT);
                 showBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         boolean checked = !(boolean)showBtn.getData();
@@ -585,7 +587,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
             chgButton.setCaption("Modify");
         
         chgButton.addClickListener(new ClickListener() {
-            private static final long serialVersionUID = 1L;
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 Collection<IModuleProvider> moduleTypes = getPossibleModuleTypes(propId, objectType);
@@ -604,7 +606,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                         }
                         catch (Exception e)
                         {
-                            Notification.show("Error", e.getMessage(), Notification.Type.ERROR_MESSAGE);
+                            DisplayUtils.showErrorPopup(CHANGE_OBJECT_ERROR + propId, e);
                         }
                     }
 
@@ -648,7 +650,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 }
                 catch (Exception e)
                 {
-                    Notification.show("Error", e.getMessage(), Notification.Type.ERROR_MESSAGE);
+                    DisplayUtils.showErrorPopup(CHANGE_OBJECT_ERROR + propId, e);
                 }
             }
 
@@ -671,7 +673,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
             }   
             
             chgButton.addClickListener(new ClickListener() {
-                private static final long serialVersionUID = 1L;
+                @Override
                 public void buttonClick(ClickEvent event)
                 {
                     if (prop.getValue() == null)
@@ -695,7 +697,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
         else
         {
             chgButton.addClickListener(new ClickListener() {
-                private static final long serialVersionUID = 1L;
+                @Override
                 public void buttonClick(ClickEvent event)
                 {
                     // we popup the list so the user can select what he wants
@@ -788,7 +790,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
         listBox.setRows(Math.max(2, Math.min(5, container.size())));
         
         FieldWrapper<Object> field = new FieldWrapper<Object>(listBox) {
-            private static final long serialVersionUID = 1499878131611223989L;
+            @Override
             protected Component initContent()
             {
                 HorizontalLayout layout = new HorizontalLayout();
@@ -807,7 +809,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 addBtn.addStyleName(STYLE_SMALL);
                 buttons.addComponent(addBtn);
                 addBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         List<Object> valueList = GenericConfigForm.this.getPossibleValues(propId);
@@ -840,7 +842,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 delBtn.addStyleName(STYLE_SMALL);
                 buttons.addComponent(delBtn);
                 delBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         Object itemId = listBox.getValue();
@@ -876,7 +878,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
         table.setContainerDataSource(container);
         
         FieldWrapper<Object> wrapper = new FieldWrapper<Object>(table) {
-            private static final long serialVersionUID = 1499878131611223989L;
+            @Override
             protected Component initContent()
             {
                 HorizontalLayout layout = new HorizontalLayout();
@@ -895,7 +897,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 addBtn.addStyleName(STYLE_SMALL);
                 buttons.addComponent(addBtn);
                 addBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         try
@@ -904,6 +906,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                             
                             // create callback to add table item
                             ObjectTypeSelectionCallback callback = new ObjectTypeSelectionCallback() {
+                                @Override
                                 public void onSelected(Class<?> objectType)
                                 {
                                     try
@@ -913,7 +916,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                                     }
                                     catch (Exception e)
                                     {
-                                        Notification.show("Error", e.getMessage(), Notification.Type.ERROR_MESSAGE);
+                                        DisplayUtils.showErrorPopup(ADD_ITEM_ERROR + propId, e);
                                     }
                                 }
                             };
@@ -940,7 +943,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                         }
                         catch (Exception e)
                         {
-                            e.printStackTrace();
+                            DisplayUtils.showErrorPopup(ADD_ITEM_ERROR + propId, e);
                         }
                     }
                 });
@@ -951,7 +954,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                 delBtn.addStyleName(STYLE_SMALL);
                 buttons.addComponent(delBtn);
                 delBtn.addClickListener(new ClickListener() {
-                    private static final long serialVersionUID = 1L;
+                    @Override
                     public void buttonClick(ClickEvent event)
                     {
                         Object itemId = table.getValue();
@@ -1061,7 +1064,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
         
         // catch select event on '+' tab to add new item
         tabs.addSelectedTabChangeListener(new SelectedTabChangeListener() {
-            private static final long serialVersionUID = 1L;
+            @Override
             public void selectedTabChange(SelectedTabChangeEvent event)
             {
                 Component selectedTab = event.getTabSheet().getSelectedTab();
@@ -1083,6 +1086,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                         
                         // create callback to add table item
                         ObjectTypeSelectionCallback callback = new ObjectTypeSelectionCallback() {
+                            @Override
                             public void onSelected(Class<?> objectType)
                             {
                                 try
@@ -1094,7 +1098,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                                 }
                                 catch (Exception e)
                                 {
-                                    Notification.show("Error", e.getMessage(), Notification.Type.ERROR_MESSAGE);
+                                    DisplayUtils.showErrorPopup(ADD_ITEM_ERROR + propId, e);
                                 }
                             }
                         };
@@ -1121,7 +1125,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
                     }
                     catch (Exception e)
                     {
-                        e.printStackTrace();
+                        DisplayUtils.showErrorPopup(ADD_ITEM_ERROR + propId, e);
                     }
                 }
                 
@@ -1194,6 +1198,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     }
     
     
+    @Override
     public List<Component> getSubForms()
     {
         return subForms;

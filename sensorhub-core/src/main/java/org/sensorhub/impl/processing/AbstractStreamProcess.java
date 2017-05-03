@@ -209,13 +209,21 @@ public abstract class AbstractStreamProcess<ConfigType extends StreamProcessConf
     }
     
     
-    protected void connectInput(String inputName, String dataPath, DataQueue inputQueue) throws Exception
+    protected void connectInput(String inputName, String dataPath, DataQueue inputQueue) throws ProcessException
     {        
         DataComponent destData = inputs.get(inputName);
         if (destData == null)
             throw new ProcessException("Input " + inputName + " doesn't exist");
-        DataComponent dest = SWEHelper.findComponentByPath(destData, dataPath);
-        inputQueue.setDestinationComponent(dest);
+        
+        try
+        {
+            DataComponent dest = SWEHelper.findComponentByPath(destData, dataPath);
+            inputQueue.setDestinationComponent(dest);
+        }
+        catch (Exception e)
+        {
+            throw new ProcessException("Cannot connect input", e);
+        }        
     }
 
 

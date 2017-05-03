@@ -40,6 +40,7 @@ public class TcpRepeater
         started = true;
         
         Thread listenThread = new Thread() {
+            @Override
             public void run() 
             {
                 while (started)
@@ -60,6 +61,7 @@ public class TcpRepeater
         listenThread.start();
         
         Thread sendThread = new Thread() {
+            @Override
             public void run() 
             {
                 while (started)

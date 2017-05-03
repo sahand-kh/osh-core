@@ -90,7 +90,7 @@ public class SWETransactionalSensor extends AbstractSensorModule<SWETransactiona
     }
 
 
-    public void newObservation(IObservation... observations) throws Exception
+    public void newObservation(IObservation... observations) throws SensorException
     {
         // don't do anything if sensor is not started
         if (state != ModuleState.STARTED)
@@ -187,7 +187,7 @@ public class SWETransactionalSensor extends AbstractSensorModule<SWETransactiona
     }
     
     
-    public void newFeatureOfInterest(String outputName, AbstractFeature foi)
+    public void newFeatureOfInterest(String outputName, AbstractFeature foi) throws SensorException
     {
         // process feature of interest
         if (foi != null)
@@ -199,7 +199,7 @@ public class SWETransactionalSensor extends AbstractSensorModule<SWETransactiona
     }    
     
     
-    public void newResultRecord(String outputName, DataBlock... dataBlocks) throws Exception
+    public void newResultRecord(String outputName, DataBlock... dataBlocks) throws SensorException
     {
         // don't do anything if sensor is not started
         if (state != ModuleState.STARTED)

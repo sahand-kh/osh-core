@@ -65,6 +65,10 @@ public class HttpServerConfig extends ModuleConfig
     @DisplayInfo(desc="Path to SSL trust store")
     public String trustStorePath = ".keystore/ssl_trust";
     
+    
+    @DisplayInfo(desc="Password to use for key and trust stores")
+    public String keyStorePassword;
+    
 
     public HttpServerConfig()
     {

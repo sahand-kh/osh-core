@@ -28,6 +28,9 @@ import com.vividsolutions.jts.geom.Polygon;
  */
 public class ObsKey extends DataKey
 {
+    private static final long serialVersionUID = 8685703972784653606L;
+
+
     /**
      * ID of feature of interest (i.e. feature whose properties were observed/measured).<br/>
      * If value is null, observation will never be selected when filtering on FoI ID

@@ -23,6 +23,8 @@ import net.opengis.swe.v20.DataEncoding;
 import org.sensorhub.api.persistence.DataKey;
 import org.sensorhub.impl.persistence.perst.BasicStorageConfig;
 import org.sensorhub.impl.persistence.perst.BasicStorageImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.vast.cdm.common.DataStreamParser;
 import org.vast.sensorML.SMLUtils;
 import org.vast.swe.SWEUtils;
@@ -34,7 +36,14 @@ import org.w3c.dom.NodeList;
 
 public class DbImport
 {
-
+    private static final Logger log = LoggerFactory.getLogger(DbImport.class);
+    
+    
+    private DbImport()
+    {        
+    }
+    
+    
     public static void main(String[] args) throws Exception
     {
         if (args.length < 2)
@@ -55,6 +64,12 @@ public class DbImport
         
         // read XML metadata file
         File metadataFile = new File(args[0]);
+        if (!metadataFile.exists())
+        {
+            System.err.println("Missing DB export file: " + metadataFile);
+            System.exit(1);
+        }
+        
         DOMHelper dom = new DOMHelper("file://" + metadataFile.getAbsolutePath(), false);
         SMLUtils smlUtils = new SMLUtils(SMLUtils.V2_0);
         SWEUtils sweUtils = new SWEUtils(SWEUtils.V2_0);
@@ -87,10 +102,15 @@ public class DbImport
             
             // read records data            
             DataStreamParser recordParser = null;
-            try
+            File dataFile = new File(metadataFile.getParent(), recordType + ".export.data");
+            if (!dataFile.exists())
             {
-                File dataFile = new File(metadataFile.getParent(), recordType + ".export.data");
-                InputStream recordInput = new BufferedInputStream(new FileInputStream(dataFile));
+                System.err.println("Missing DB export file: " + dataFile);
+                System.exit(1);
+            }
+            
+            try (InputStream recordInput = new BufferedInputStream(new FileInputStream(dataFile)))
+            {
                 DataInputStream dis = new DataInputStream(recordInput);
                 
                 // prepare record writer
@@ -102,7 +122,7 @@ public class DbImport
                 int recordCount = 0;
                 while (true)
                 {
-                    try
+                    try 
                     {
                         double timeStamp = dis.readDouble();
                         String producerID = dis.readUTF();
@@ -120,6 +140,7 @@ public class DbImport
                     }
                     catch (EOFException e)
                     {
+                        log.trace("No more records", e);
                         break;
                     }
                 }

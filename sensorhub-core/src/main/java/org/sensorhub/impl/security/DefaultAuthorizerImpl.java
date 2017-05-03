@@ -50,7 +50,7 @@ public class DefaultAuthorizerImpl implements IAuthorizer
         }
         
         // check user own permissions
-        return hasPermission((IUserPermissions)user, requestedPerm);
+        return hasPermission(user, requestedPerm);
     }
     
     

@@ -30,6 +30,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -42,6 +44,8 @@ import java.util.concurrent.TimeoutException;
  */
 public class IPNetworkUtils
 {
+    private static final Logger log = LoggerFactory.getLogger(IPNetworkUtils.class);
+    
     
     /**
      * @return true if at least one network interface is up
@@ -56,7 +60,7 @@ public class IPNetworkUtils
         }
         catch (SocketException e)
         {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Cannot list network interfaces", e);
         }
         
         // check if at least one interface is up
@@ -72,6 +76,7 @@ public class IPNetworkUtils
             }
             catch (SocketException e)
             {
+                throw new IllegalStateException("Cannot get network interface status", e);
             }
         }
         
@@ -111,16 +116,18 @@ public class IPNetworkUtils
             if (e.getCause() instanceof UnknownHostException)
                 throw (UnknownHostException)e.getCause();
             else
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e);
         }
         catch (InterruptedException e)
         {
             Thread.currentThread().interrupt();
-            return null;
+            return new InetAddress[0];
         }
         catch (TimeoutException e)
         {
-            throw new UnknownHostException("DNS timeout while resolving hostname " + host);
+            String msg = "DNS timeout while resolving hostname " + host;
+            log.trace(msg, e);
+            throw new UnknownHostException(msg);
         }
     }
     
@@ -175,8 +182,9 @@ public class IPNetworkUtils
         {
             soc.connect(new InetSocketAddress(ip, port), timeOut - ellapsed);
         }
-        catch (IOException ex)
+        catch (IOException e)
         {
+            log.trace("Cannot reach host " + host + " on port " + port, e);
             return false;
         }
         

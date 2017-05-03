@@ -147,13 +147,13 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         }
         catch (Exception e)
         {
-            throw new ClientException("Cannot find sensor with local ID " + config.sensorID);
+            throw new ClientException("Cannot find sensor with local ID " + config.sensorID, e);
         }
         
         // create connection handler
         this.connection = new RobustIPConnection(this, config.connection, "SOS server")
         {
-            public boolean tryConnect() throws Exception
+            public boolean tryConnect() throws IOException
             {
                 // first check if we can reach remote host on specified port
                 if (!tryConnectTCP(config.sos.remoteHost, config.sos.remotePort))
@@ -182,7 +182,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
                     for (String opName: neededOps)
                     {
                         if (!caps.getPostServers().containsKey(opName))
-                            throw new ClientException(opName + " operation not supported by this SOS endpoint");
+                            throw new IOException(opName + " operation not supported by this SOS endpoint");
                     }
                 }
                 
@@ -191,10 +191,10 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
                 if (insertCaps != null)
                 {
                     if (!insertCaps.getProcedureFormats().contains(SWESUtils.DEFAULT_PROCEDURE_FORMAT))
-                        throw new ClientException("SensorML v2.0 format not supported by this SOS endpoint");
+                        throw new IOException("SensorML v2.0 format not supported by this SOS endpoint");
                     
                     if (!insertCaps.getObservationTypes().contains(IObservation.OBS_TYPE_RECORD))
-                        throw new ClientException("DataRecord observation type not supported by this SOS endpoint");
+                        throw new IOException("DataRecord observation type not supported by this SOS endpoint");
                 }
                 
                 return true;
@@ -218,9 +218,8 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
             }
             catch (Exception e)
             {
-                reportError("Error while starting module", e);
+                reportError(CANNOT_START_MSG, e);
                 requestStop();
-                throw e;
             }
         }
     }
@@ -297,6 +296,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         }
         catch (IOException e)
         {
+            getLogger().trace("Cannot close persistent connection", e);
         }
         
         // stop thread pool
@@ -621,6 +621,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
                     }
                     catch (IOException e1)
                     {
+                        getLogger().trace("Cannot close persistent connection", e1);
                     }
                     
                     // clean writer so we reconnect

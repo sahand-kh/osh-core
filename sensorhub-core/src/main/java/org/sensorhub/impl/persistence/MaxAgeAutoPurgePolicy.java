@@ -57,6 +57,7 @@ public class MaxAgeAutoPurgePolicy implements IStorageAutoPurgePolicy
                 // remove records
                 numDeletedRecords += storage.removeRecords(new DataFilter(streamInfo.getName())
                 {
+                    @Override
                     public double[] getTimeStampRange()
                     {
                         return obsoleteTimeRange;

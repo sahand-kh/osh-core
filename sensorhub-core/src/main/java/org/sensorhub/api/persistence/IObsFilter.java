@@ -38,6 +38,7 @@ public interface IObsFilter extends IDataFilter
      * If range is null, no filtering on phenomenon time will be applied.
      * @return Desired phenomenon time range
      */
+    @Override
     public double[] getTimeStampRange();
     
     

@@ -82,14 +82,14 @@ public class BasicStorageImpl extends AbstractModule<BasicStorageConfig> impleme
             }
             catch (Exception e)
             {
-                throw new StorageException("Storage file " + config.storagePath + " is already locked by the JVM");
+                throw new StorageException("Storage file " + config.storagePath + " is already locked by the JVM", e);
             }
             
             db = StorageFactory.getInstance().createStorage();
             db.setProperty("perst.concurrent.iterator", true); // allow insertions while iterating through indexes
             db.setProperty("perst.object.cache.init.size", config.objectCacheSize); // limit number of pinned objects in LRU object cache
             db.setProperty("perst.alternative.btree", true);
-            db.open(dbFile, Math.max(config.memoryCacheSize, 20)*1024);
+            db.open(dbFile, Math.max(config.memoryCacheSize, 20)*1024L);
             dbRoot = (BasicStorageRoot)db.getRoot();
             
             if (dbRoot == null)

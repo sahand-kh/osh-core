@@ -117,7 +117,7 @@ public class SensorSystem extends AbstractSensorModule<SensorSystemConfig>
             if (config.id == null)
                 config.id = UUID.randomUUID().toString();
             
-            Class<?> clazz = (Class<?>)Class.forName(config.moduleClass);
+            Class<?> clazz = Class.forName(config.moduleClass);
             IModule<ModuleConfig> module = (IModule<ModuleConfig>)clazz.newInstance();
             module.init(config);
             return module;

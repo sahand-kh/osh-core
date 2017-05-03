@@ -27,11 +27,10 @@ import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
 
 
+@SuppressWarnings("serial")
 public class ModuleInstanceSelectionPopup extends Window
 {
-    private static final long serialVersionUID = 8721813580001962705L;
-    
-    
+        
     @SuppressWarnings("rawtypes")
     protected interface ModuleInstanceSelectionCallback
     {

@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.persistence;
 
+import java.io.Serializable;
 
 /**
  * <p>
@@ -24,8 +25,11 @@ package org.sensorhub.api.persistence;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 6, 2010
  */
-public class DataKey
+public class DataKey implements Serializable
 {
+    private static final long serialVersionUID = 4804063766602286733L;
+
+
     /**
      * ID of record type (i.e. maps to a record structure definition).<br/>
      * This field cannot be null.

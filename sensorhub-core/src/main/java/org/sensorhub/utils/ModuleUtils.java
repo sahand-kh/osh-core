@@ -16,6 +16,9 @@ package org.sensorhub.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -26,26 +29,32 @@ import org.sensorhub.api.module.ModuleConfig;
 
 public class ModuleUtils
 {
-    public final static String MODULE_NAME = "Bundle-Name";
-    public final static String MODULE_DESC = "Bundle-Description";
-    public final static String MODULE_VERSION = "Bundle-Version";
-    public final static String MODULE_VENDOR = "Bundle-Vendor";
-    public final static String MODULE_BUILD = "Bundle-BuildNumber";
-    public final static String MODULE_DEPS = "OSH-Dependencies";
+    public static final String MODULE_NAME = "Bundle-Name";
+    public static final String MODULE_DESC = "Bundle-Description";
+    public static final String MODULE_VERSION = "Bundle-Version";
+    public static final String MODULE_VENDOR = "Bundle-Vendor";
+    public static final String MODULE_BUILD = "Bundle-BuildNumber";
+    public static final String MODULE_DEPS = "OSH-Dependencies";
     
     
     public static Manifest getManifest(Class<?> clazz)
     {
         try
         {
-            String jarUrl = clazz.getProtectionDomain().getCodeSource().getLocation().getFile();
-            try ( JarFile jar = new JarFile(new File(jarUrl)) ) {
-                return jar.getManifest();
+            URL srcUrl = clazz.getProtectionDomain().getCodeSource().getLocation();
+            if (srcUrl != null && "jar".equalsIgnoreCase(srcUrl.getProtocol()))
+            {
+                String jarName = URLDecoder.decode(srcUrl.getFile(), StandardCharsets.UTF_8.name());
+                try ( JarFile jar = new JarFile(new File(jarName)) ) {
+                    return jar.getManifest();
+                }
             }
+            
+            return null;            
         }
         catch (IOException e)
         {
-            return null;
+            throw new IllegalStateException("Cannot access JAR manifest", e);
         }
     }
     

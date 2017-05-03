@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sps;
 
+import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.impl.sensor.swe.ITaskingCallback;
 import org.sensorhub.impl.service.swe.Template;
 import net.opengis.swe.v20.DataComponent;
@@ -40,18 +41,18 @@ public interface ISPSTransactionalConnector extends ISPSConnector
      * @param component
      * @param encoding
      * @return
-     * @throws Exception
+     * @throws SensorHubException
      */
-    public String newTaskingTemplate(DataComponent component, DataEncoding encoding) throws Exception;
+    public String newTaskingTemplate(DataComponent component, DataEncoding encoding) throws SensorHubException;
     
     
     /**
      * Retrieve previously registered tasking template information
      * @param templateID
      * @return command message description (structure + encoding)
-     * @throws Exception 
+     * @throws SensorHubException 
      */
-    public Template getTemplate(String templateID) throws Exception;
+    public Template getTemplate(String templateID) throws SensorHubException;
     
     
     /**

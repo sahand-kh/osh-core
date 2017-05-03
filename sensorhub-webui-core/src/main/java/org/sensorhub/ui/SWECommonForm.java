@@ -34,10 +34,10 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.VerticalLayout;
 
 
+@SuppressWarnings("serial")
 public class SWECommonForm extends VerticalLayout
 {
-    private static final long serialVersionUID = 8590941544560086101L;
-    SWEDataTypeUtils sweUtils = new SWEDataTypeUtils();
+    transient SWEDataTypeUtils sweUtils = new SWEDataTypeUtils();
     boolean showArrayTable;
     boolean addSpacing = false;
     

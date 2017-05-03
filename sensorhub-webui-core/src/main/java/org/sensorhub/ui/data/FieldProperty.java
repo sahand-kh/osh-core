@@ -20,7 +20,7 @@ import java.lang.reflect.Field;
 @SuppressWarnings("serial")
 public class FieldProperty extends BaseProperty<Object>
 {
-    Object instance;
+    transient Object instance;
 
 
     public FieldProperty(Object instance, Field f)
@@ -39,13 +39,13 @@ public class FieldProperty extends BaseProperty<Object>
         }
         catch (Exception e)
         {
-            return null;
+            throw new IllegalStateException(e);
         }
     }
 
 
     @Override
-    public void setValue(Object newValue) throws ReadOnlyException
+    public void setValue(Object newValue)
     {
         try
         {
@@ -54,6 +54,7 @@ public class FieldProperty extends BaseProperty<Object>
         }
         catch (Exception e)
         {
+            throw new IllegalStateException(e);
         }
     }
 

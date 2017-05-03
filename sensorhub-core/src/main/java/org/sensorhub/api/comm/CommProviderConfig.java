@@ -34,9 +34,9 @@ public class CommProviderConfig<ConfigType> extends ModuleConfig
             commProvider.init(this);  
             return commProvider;
         }
-        catch (Throwable e)
+        catch (Exception e)
         {
-            throw new RuntimeException("Cannot load module " + moduleClass, e);
+            throw new IllegalStateException("Cannot load module " + moduleClass, e);
         }
     }
 }

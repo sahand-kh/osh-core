@@ -14,15 +14,11 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.security;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.security.KeyStore;
 import java.security.KeyStore.SecretKeyEntry;
 import java.security.KeyStore.PasswordProtection;
-import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
@@ -50,7 +46,7 @@ public class ClientAuth extends Authenticator
     public static ClientAuth getInstance()
     {
         if (instance == null)
-            throw new RuntimeException("No singleton instance has been created yet");
+            throw new IllegalStateException("No singleton instance has been created yet");
         
         return instance;
     }
@@ -84,7 +80,7 @@ public class ClientAuth extends Authenticator
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Cannot initialize key store", e);
+            throw new IllegalStateException("Cannot initialize key store", e);
         }*/
     }
     
@@ -112,8 +108,7 @@ public class ClientAuth extends Authenticator
         }
         catch (Exception e)
         {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new IllegalStateException("Cannot store credentials", e);
         }
         finally
         {
@@ -161,9 +156,7 @@ public class ClientAuth extends Authenticator
         }
         catch (Exception e)
         {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return null;
+            throw new IllegalStateException("Cannot retrieve password", e);
         }
     }
     

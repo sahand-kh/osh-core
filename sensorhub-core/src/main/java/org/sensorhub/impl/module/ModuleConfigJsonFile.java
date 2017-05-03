@@ -85,6 +85,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
         }
 
 
+        @Override
         public <R> TypeAdapter<R> create(final Gson gson, final TypeToken<R> type)
         {
             if (baseType != Object.class && !type.getRawType().isInstance(baseType))
@@ -114,7 +115,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
                             }
                             catch (ClassNotFoundException e)
                             {
-                                throw new RuntimeException("Runtime class specified in JSON is invalid: " + type, e);
+                                throw new IllegalStateException("Runtime class specified in JSON is invalid: " + type, e);
                             }
                         }
                     }
@@ -155,8 +156,11 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
     public ModuleConfigJsonFile(String moduleConfigPath, boolean keepBackup)
     {
         this.configFile = new File(moduleConfigPath);
+        if (!configFile.exists())
+            throw new IllegalArgumentException("Cannot find config file " + configFile.getAbsolutePath());
+        
         this.keepBackup= keepBackup;
-        this.configMap = new LinkedHashMap<String, ModuleConfig>();
+        this.configMap = new LinkedHashMap<>();
         
         // init json serializer/deserializer
         final GsonBuilder builder = new GsonBuilder();
@@ -174,7 +178,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
     {
         if (configMap.isEmpty())
             readJSON();        
-        return new ArrayList<ModuleConfig>(configMap.values());
+        return new ArrayList<>(configMap.values());
     }
     
     
@@ -190,7 +194,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
     {
         ModuleConfig conf = configMap.get(moduleID);
         if (conf == null)
-            throw new RuntimeException("No configuration found for module id " + moduleID);
+            throw new IllegalArgumentException("No configuration found for module id " + moduleID);
         return conf;
     }
 
@@ -202,7 +206,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
         {        
             ModuleConfig conf = configMap.get(config.id);
             if (conf != null)
-                throw new RuntimeException("Module " + config.name + " already exists");            
+                throw new IllegalArgumentException("Module " + config.name + " already exists");
             
             configMap.put(config.id, config);
         }
@@ -248,7 +252,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
             }
             catch (IOException e)
             {
-                log.error("Could not backup previous config file");
+                log.error("Could not backup previous config file", e);
             }
         }
         
@@ -269,13 +273,8 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
      */
     private void readJSON()
     {
-        FileReader reader = null;
-        if (!configFile.exists())
-            throw new RuntimeException("Cannot find config file " + configFile.getAbsolutePath());
-        
-        try
+        try (FileReader reader = new FileReader(configFile))
         {
-            reader = new FileReader(configFile);            
             Type collectionType = new TypeToken<List<ModuleConfig>>(){}.getType();
             JsonReader jsonReader = new JsonReader(reader);
             List<ModuleConfig> configList = gson.fromJson(jsonReader, collectionType);
@@ -285,53 +284,29 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
             for (ModuleConfig config: configList)
             {
                 if (configMap.containsKey(config.id))
-                    throw new RuntimeException("Duplicate module ID " + config.id);
+                    throw new IllegalStateException("Duplicate module ID " + config.id);
                 configMap.put(config.id, config);
             }
         }
         catch (Exception e)
         {
-            throw new RuntimeException("Error while parsing module config file " + configFile.getAbsolutePath(), e);
-        }
-        finally
-        {
-            try
-            {
-                if (reader != null)
-                    reader.close();
-            }
-            catch (IOException e)
-            {
-            }
+            throw new IllegalStateException("Error while parsing module config file " + configFile.getAbsolutePath(), e);
         }
     }
     
     
     private void writeJSON()
     {
-        FileWriter writer = null;
-        
-        try
+        try (FileWriter writer = new FileWriter(configFile))
         {
             Collection<ModuleConfig> configList = configMap.values();
-            writer = new FileWriter(configFile);
+            
             Type collectionType = new TypeToken<List<ModuleConfig>>(){}.getType();
             writer.append(gson.toJson(configList, collectionType));
         }
         catch (IOException e)
         {
-            throw new RuntimeException("Error while writing JSON config file " + configFile.getAbsolutePath(), e);
-        }
-        finally
-        {
-            try
-            {
-                if (writer != null)
-                    writer.close();
-            }
-            catch (IOException e)
-            {
-            }
+            throw new IllegalStateException("Error while writing JSON config file " + configFile.getAbsolutePath(), e);
         }
     }
 }

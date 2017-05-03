@@ -46,9 +46,9 @@ import com.vaadin.ui.Table.CellStyleGenerator;
 import com.vaadin.ui.Table.ColumnHeaderMode;
 
 
+@SuppressWarnings("serial")
 public class BasicSecurityConfigForm extends GenericConfigForm
 {
-    private static final long serialVersionUID = 3934416218769947436L;
     private static final Action ALLOW_ACTION = new Action("Allow", FontAwesome.CHECK);
     private static final Action DENY_ACTION = new Action("Deny", FontAwesome.BAN);
     private static final Action CLEAR_ACTION = new Action("Clear", FontAwesome.TIMES);
@@ -60,8 +60,8 @@ public class BasicSecurityConfigForm extends GenericConfigForm
     protected static final String PROP_STATE = "state";
     
     private enum PermState {ALLOW, DENY, INHERIT_ALLOW, INHERIT_DENY, UNSET}
-    private RoleConfig roleConfig;
-    private TreeTable permissionTable;
+    private transient RoleConfig roleConfig;
+    private transient TreeTable permissionTable;
     
     
     @Override
@@ -120,7 +120,6 @@ public class BasicSecurityConfigForm extends GenericConfigForm
     }
     
     
-    @SuppressWarnings("serial")
     private void buildTable(HorizontalLayout layout)
     {
         // permission table
@@ -335,7 +334,7 @@ public class BasicSecurityConfigForm extends GenericConfigForm
         addBtn.addStyleName(STYLE_SMALL);
         buttons.addComponent(addBtn);
         addBtn.addClickListener(new ClickListener() {
-            private static final long serialVersionUID = 1L;
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 // get list of top level permissions registered with securitu manager
@@ -362,7 +361,7 @@ public class BasicSecurityConfigForm extends GenericConfigForm
         delBtn.addStyleName(STYLE_SMALL);
         buttons.addComponent(delBtn);
         delBtn.addClickListener(new ClickListener() {
-            private static final long serialVersionUID = 1L;
+            @Override
             public void buttonClick(ClickEvent event)
             {
                 Object itemId = permissionTable.getValue();

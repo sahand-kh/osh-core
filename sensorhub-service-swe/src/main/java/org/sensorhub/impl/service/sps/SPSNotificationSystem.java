@@ -33,19 +33,19 @@ import org.w3c.dom.Element;
  */
 public class SPSNotificationSystem extends NotificationSystem
 {
-	public static String SPS_NS_URI = SPSUtils.getNamespaceURI(SPSUtils.SPS, "2.0");
-	public static QName TASK_SUBMISSION_TOPIC = new QName(SPS_NS_URI, "TaskSubmission", "sps");
-	public static QName TASK_COMPLETION_TOPIC = new QName(SPS_NS_URI, "TaskCompletion", "sps");
-	public static QName TASK_FAILURE_TOPIC = new QName(SPS_NS_URI, "TaskFailure", "sps");
-	public static QName TASK_CANCELLATION_TOPIC = new QName(SPS_NS_URI, "TaskCancellation", "sps");
-	public static QName TASK_UPDATE_TOPIC = new QName(SPS_NS_URI, "TaskUpdate", "sps");
-	public static QName DATA_PUBLICATION_TOPIC = new QName(SPS_NS_URI, "DataPublication", "sps");
-	public static QName TASK_RESERVATION_TOPIC = new QName(SPS_NS_URI, "TaskReservation", "sps");
-	public static QName TASK_CONFIRMATION_TOPIC = new QName(SPS_NS_URI, "TaskConfirmation", "sps");
-	public static QName RESERVATION_EXPIRATION_TOPIC = new QName(SPS_NS_URI, "ReservationExpiration", "sps");
-	public static QName REQUEST_EXPIRATION_TOPIC = new QName(SPS_NS_URI, "TaskingRequestExpiration", "sps");
-	public static QName REQUEST_REJECTION_TOPIC = new QName(SPS_NS_URI, "TaskingRequestRejection", "sps");
-	public static QName REQUEST_ACCEPTANCE_TOPIC = new QName(SPS_NS_URI, "TaskingRequestAcceptance", "sps");
+	public static final String SPS_NS_URI = SPSUtils.getNamespaceURI(SPSUtils.SPS, "2.0");
+	public static final QName TASK_SUBMISSION_TOPIC = new QName(SPS_NS_URI, "TaskSubmission", "sps");
+	public static final QName TASK_COMPLETION_TOPIC = new QName(SPS_NS_URI, "TaskCompletion", "sps");
+	public static final QName TASK_FAILURE_TOPIC = new QName(SPS_NS_URI, "TaskFailure", "sps");
+	public static final QName TASK_CANCELLATION_TOPIC = new QName(SPS_NS_URI, "TaskCancellation", "sps");
+	public static final QName TASK_UPDATE_TOPIC = new QName(SPS_NS_URI, "TaskUpdate", "sps");
+	public static final QName DATA_PUBLICATION_TOPIC = new QName(SPS_NS_URI, "DataPublication", "sps");
+	public static final QName TASK_RESERVATION_TOPIC = new QName(SPS_NS_URI, "TaskReservation", "sps");
+	public static final QName TASK_CONFIRMATION_TOPIC = new QName(SPS_NS_URI, "TaskConfirmation", "sps");
+	public static final QName RESERVATION_EXPIRATION_TOPIC = new QName(SPS_NS_URI, "ReservationExpiration", "sps");
+	public static final QName REQUEST_EXPIRATION_TOPIC = new QName(SPS_NS_URI, "TaskingRequestExpiration", "sps");
+	public static final QName REQUEST_REJECTION_TOPIC = new QName(SPS_NS_URI, "TaskingRequestRejection", "sps");
+	public static final QName REQUEST_ACCEPTANCE_TOPIC = new QName(SPS_NS_URI, "TaskingRequestAcceptance", "sps");
 	
 	
 	public SPSNotificationSystem(String endpointURI, ISubscriptionDB subscriptionDB)
@@ -66,6 +66,7 @@ public class SPSNotificationSystem extends NotificationSystem
 		}
 		catch (XMLWriterException e)
 		{
+		    log.error("Cannot notify subscribers", e);
 		}
 	}
 	

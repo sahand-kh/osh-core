@@ -59,6 +59,7 @@ import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.impl.service.HttpServerConfig.AuthMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.vast.util.Asserts;
 
 
 /**
@@ -72,20 +73,19 @@ import org.slf4j.LoggerFactory;
 public class HttpServer extends AbstractModule<HttpServerConfig>
 {
     private static final Logger log = LoggerFactory.getLogger(HttpServer.class);
-    private static final String DEFAULT_KEYSTORE_PWD = "osh2016";
     private static final String CERT_ALIAS = "jetty";
-    public final static String TEST_MSG = "SensorHub web server is up";
+    public static final String TEST_MSG = "SensorHub web server is up";
     private static HttpServer instance;
         
     Server server;
     ServletContextHandler servletHandler;
-    ConstraintSecurityHandler securityHandler;
+    ConstraintSecurityHandler jettySecurityHandler;
     
     
     public HttpServer()
     {
         if (instance != null)
-            throw new RuntimeException("Cannot start several HTTP server instances");
+            throw new IllegalStateException("Cannot start several HTTP server instances");
         
         instance = this;
     }
@@ -120,13 +120,13 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
             HandlerList handlers = new HandlerList();
             
             // HTTP connector
-            HttpConfiguration http_config = new HttpConfiguration();
-            http_config.setSecureScheme("https");
-            http_config.setSecurePort(config.httpsPort);
+            HttpConfiguration httpConfig = new HttpConfiguration();
+            httpConfig.setSecureScheme("https");
+            httpConfig.setSecurePort(config.httpsPort);
             if (config.httpPort > 0)
             {
                 ServerConnector http = new ServerConnector(server,
-                        new HttpConnectionFactory(http_config));
+                        new HttpConnectionFactory(httpConfig));
                 http.setPort(config.httpPort);
                 http.setIdleTimeout(30000);
                 server.addConnector(http);
@@ -135,19 +135,23 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
             // HTTPS connector
             if (config.httpsPort > 0)
             {
+                Asserts.checkNotNull(config.keyStorePath, "The keystore path must be set when HTTPS is used");
+                Asserts.checkNotNull(config.trustStorePath, "The trust store path must be set when HTTPS is used");
+                Asserts.checkNotNull(config.keyStorePassword, "The keystore password must be set when HTTPS is used");
+                
                 SslContextFactory sslContextFactory = new SslContextFactory();
                 sslContextFactory.setKeyStorePath(new File(config.keyStorePath).getAbsolutePath());
-                sslContextFactory.setKeyStorePassword(DEFAULT_KEYSTORE_PWD);
-                sslContextFactory.setKeyManagerPassword(DEFAULT_KEYSTORE_PWD);
+                sslContextFactory.setKeyStorePassword(config.keyStorePassword);
+                sslContextFactory.setKeyManagerPassword(config.keyStorePassword);
                 sslContextFactory.setCertAlias(CERT_ALIAS);
                 sslContextFactory.setTrustStorePath(new File(config.trustStorePath).getAbsolutePath());
-                sslContextFactory.setTrustStorePassword(DEFAULT_KEYSTORE_PWD);
+                sslContextFactory.setTrustStorePassword(config.keyStorePassword);
                 sslContextFactory.setWantClientAuth(true);
-                HttpConfiguration https_config = new HttpConfiguration(http_config);
-                https_config.addCustomizer(new SecureRequestCustomizer());
+                HttpConfiguration httpsConfig = new HttpConfiguration(httpConfig);
+                httpsConfig.addCustomizer(new SecureRequestCustomizer());
                 ServerConnector https = new ServerConnector(server, 
                         new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-                        new HttpConnectionFactory(https_config));
+                        new HttpConnectionFactory(httpsConfig));
                 https.setPort(config.httpsPort);
                 https.setIdleTimeout(30000);
                 server.addConnector(https);
@@ -191,28 +195,28 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
                 // security handler
                 if (config.authMethod != null && config.authMethod != AuthMethod.NONE)
                 {
-                    securityHandler = new ConstraintSecurityHandler();
+                    jettySecurityHandler = new ConstraintSecurityHandler();
                     
                     // load user list
                     ISecurityManager securityManager = SensorHub.getInstance().getSecurityManager();
                     OshLoginService loginService = new OshLoginService(securityManager);
                     
                     if (config.authMethod == AuthMethod.BASIC)
-                        securityHandler.setAuthenticator(new BasicAuthenticator());
+                        jettySecurityHandler.setAuthenticator(new BasicAuthenticator());
                     else if (config.authMethod == AuthMethod.DIGEST)
-                        securityHandler.setAuthenticator(new DigestAuthenticator());
+                        jettySecurityHandler.setAuthenticator(new DigestAuthenticator());
                     else if (config.authMethod == AuthMethod.CERT)
-                        securityHandler.setAuthenticator(new ClientCertAuthenticator());
+                        jettySecurityHandler.setAuthenticator(new ClientCertAuthenticator());
                     else if (config.authMethod == AuthMethod.EXTERNAL)
                     {
                         Authenticator authenticator = securityManager.getAuthenticator();
                         if (authenticator == null)
-                            throw new RuntimeException("External authentication method was selected but no authenticator implementation is available");
-                        securityHandler.setAuthenticator(authenticator);
+                            throw new IllegalStateException("External authentication method was selected but no authenticator implementation is available");
+                        jettySecurityHandler.setAuthenticator(authenticator);
                     }
                     
-                    securityHandler.setLoginService(loginService);
-                    servletHandler.setSecurityHandler(securityHandler);
+                    jettySecurityHandler.setLoginService(loginService);
+                    servletHandler.setSecurityHandler(jettySecurityHandler);
                 }
                 
                 // filter to add proper cross-origin headers
@@ -221,6 +225,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
                 // add default test servlet
                 servletHandler.addServlet(new ServletHolder(new HttpServlet() {
                     private static final long serialVersionUID = 1L;
+                    @Override
                     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException
                     {
                         try
@@ -229,7 +234,15 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
                         }
                         catch (IOException e)
                         {
-                            throw new ServletException(e);
+                            try
+                            {
+                                log.error("Cannot send test message", e);
+                                resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                            }
+                            catch (IOException e1)
+                            {
+                                log.trace("Cannot send HTTP error code", e1);
+                            }
                         }
                     }
                 }),"/test");
@@ -244,7 +257,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
         }
         catch (Exception e)
         {
-            throw new SensorHubException("Error while starting SensorHub embedded HTTP server", e);
+            throw new SensorHubException("Cannot start embedded HTTP server", e);
         }
     }
     
@@ -258,7 +271,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
             {
                 server.stop();
                 servletHandler = null;
-                securityHandler = null;
+                jettySecurityHandler = null;
             }
         }
         catch (Exception e)
@@ -271,7 +284,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
     protected void checkStarted()
     {
         if (!isStarted())
-            throw new RuntimeException("HTTP service must be started before servlets can be deployed");
+            throw new IllegalStateException("HTTP service must be started before servlets can be deployed");
     }
     
     
@@ -351,7 +364,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
     
     public synchronized void addServletSecurity(String pathSpec, boolean requireAuth, String... roles)
     {
-        if (securityHandler != null)
+        if (jettySecurityHandler != null)
         {
             Constraint constraint = new Constraint();
             constraint.setRoles(roles);
@@ -359,7 +372,7 @@ public class HttpServer extends AbstractModule<HttpServerConfig>
             ConstraintMapping cm = new ConstraintMapping();
             cm.setConstraint(constraint);
             cm.setPathSpec(pathSpec);
-            securityHandler.addConstraintMapping(cm);
+            jettySecurityHandler.addConstraintMapping(cm);
         }
     }
 

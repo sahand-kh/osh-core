@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sos;
 
+import java.io.IOException;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.processing.IStreamProcessModule;
 
@@ -31,7 +32,7 @@ import org.sensorhub.api.processing.IStreamProcessModule;
 public class StreamProcessDataProvider extends StreamDataProvider implements ISOSDataProvider, IEventListener
 {
     
-    public StreamProcessDataProvider(IStreamProcessModule<?> srcProcess, StreamProcessProviderConfig config, SOSDataFilter filter) throws Exception
+    public StreamProcessDataProvider(IStreamProcessModule<?> srcProcess, StreamProcessProviderConfig config, SOSDataFilter filter) throws IOException
     {
         super(srcProcess, config, filter);
     }

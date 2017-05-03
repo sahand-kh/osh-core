@@ -139,7 +139,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
         }
         catch (SensorException e)
         {
-            throw new ServiceException("Error while generating capabilities for sensor " + MsgUtils.moduleString(sensor), e);
+            throw new ServiceException("Cannot generate capabilities for sensor " + MsgUtils.moduleString(sensor), e);
         }
     }
     
@@ -186,13 +186,13 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
     
     
     @Override
-    public void updateCapabilities() throws Exception
+    public void updateCapabilities()
     {        
     }
     
     
     @Override
-    public AbstractProcess generateSensorMLDescription(double time) throws Exception
+    public AbstractProcess generateSensorMLDescription(double time)
     {
         return sensor.getCurrentDescription();
     }

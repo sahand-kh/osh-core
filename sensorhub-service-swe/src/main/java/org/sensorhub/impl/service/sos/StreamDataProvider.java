@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sos;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,10 +76,10 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
     DataEvent lastDataEvent;
     int nextEventRecordIndex = 0;
     Set<String> requestedFois;
-    Map<String, String> currentFoiMap = new LinkedHashMap<String, String>(); // entity ID -> current FOI ID
+    Map<String, String> currentFoiMap = new LinkedHashMap<>(); // entity ID -> current FOI ID
     
 
-    public StreamDataProvider(IDataProducer dataSource, StreamDataProviderConfig config, SOSDataFilter filter) throws Exception
+    public StreamDataProvider(IDataProducer dataSource, StreamDataProviderConfig config, SOSDataFilter filter) throws IOException
     {
         this.dataSource = dataSource;
         
@@ -94,7 +95,7 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
         }
         
         // create queue with proper size
-        eventQueue = new LinkedBlockingQueue<DataEvent>(Math.max(DEFAULT_QUEUE_SIZE, numProducers));
+        eventQueue = new LinkedBlockingQueue<>(Math.max(DEFAULT_QUEUE_SIZE, numProducers));
         
         // find selected output
         selectedOutput = findOutput(dataSource, config.hiddenOutputs, filter.getObservables());
@@ -442,7 +443,8 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
                     long now = System.currentTimeMillis();
                     if (now - lastQueueErrorTime > 10000)
                     {
-                        log.warn("Maximum queue size reached while streaming data from " + dataSource + ". " + "Some records will be discarded. This is often due to insufficient bandwidth");
+                        log.warn("Maximum queue size reached while streaming data from {}. " + 
+                                 "Some records will be discarded. This is often due to insufficient bandwidth", dataSource);
                         lastQueueErrorTime = now;
                     }
                 }

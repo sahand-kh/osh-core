@@ -18,12 +18,12 @@ import java.util.HashMap;
 import java.util.Map;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.SensorException;
+import org.sensorhub.api.service.ServiceException;
 import org.sensorhub.impl.sensor.swe.DataStructureHash;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensorControl;
 import org.sensorhub.impl.service.swe.Template;
 import org.sensorhub.impl.sensor.swe.ITaskingCallback;
-import org.vast.ows.sps.SPSException;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataStream;
@@ -49,7 +49,7 @@ public class TransactionalSensorConnector extends DirectSensorConnector implemen
     
     
     @Override
-    public String newTaskingTemplate(DataComponent component, DataEncoding encoding) throws Exception
+    public String newTaskingTemplate(DataComponent component, DataEncoding encoding) throws SensorHubException
     {
         DataStructureHash templateHashObj = new DataStructureHash(component, encoding);
         String templateID = structureToTemplateIdMap.get(templateHashObj);
@@ -66,7 +66,7 @@ public class TransactionalSensorConnector extends DirectSensorConnector implemen
         }
         catch (SensorException e)
         {
-            throw new SPSException(SPSException.invalid_param_code, "TaskingTemplate", null, e.getMessage());
+            throw new ServiceException("Invalid template", e);
         }
         
         return templateID;
@@ -82,10 +82,13 @@ public class TransactionalSensorConnector extends DirectSensorConnector implemen
     }
     
     
-    public Template getTemplate(String templateID) throws Exception
+    public Template getTemplate(String templateID) throws SensorHubException
     {
         String paramName = getInputNameFromTemplateID(templateID);
         DataStream param = (DataStream)sensor.getCurrentDescription().getParameter(paramName);
+        if (param == null)
+            throw new ServiceException("Invalid tasking parameter: " + templateID);
+        
         Template template = new Template();
         template.component = param.getElementType();
         template.encoding = param.getEncoding();

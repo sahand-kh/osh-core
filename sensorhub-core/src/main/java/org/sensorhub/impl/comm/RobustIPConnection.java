@@ -92,7 +92,7 @@ public abstract class RobustIPConnection extends RobustConnection
         }
         catch (UnknownHostException e)
         {
-            module.reportError("Cannot resolve hostname " + host, null, true);
+            module.reportError("Cannot resolve hostname " + host, e, true);
             return false;
         }
         

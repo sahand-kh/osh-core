@@ -20,9 +20,9 @@ import com.vaadin.data.validator.StringLengthValidator;
 import com.vaadin.ui.Field;
 
 
+@SuppressWarnings("serial")
 public class HttpServerConfigForm extends GenericConfigForm
 {
-    private static final long serialVersionUID = 3934416218769947436L;
     protected static final String PROP_SERVLET_ROOT = "servletsRootUrl";
     protected static final String PROP_HTTP_PORT = "httpPort";
     protected static final String PROP_HTTPS_PORT = "httpsPort";
@@ -40,7 +40,7 @@ public class HttpServerConfigForm extends GenericConfigForm
         else if (propId.equals(PROP_HTTP_PORT) || propId.equals(PROP_HTTPS_PORT))
         {
             field.addValidator(new Validator() {
-                private static final long serialVersionUID = 1L;
+                @Override
                 public void validate(Object value) throws InvalidValueException
                 {
                     int portNum = (Integer)value;

@@ -79,6 +79,7 @@ public class TestHttpServer
         // deploy new servlet dynamically
         HttpServer.getInstance().deployServlet(new HttpServlet() {
             private static final long serialVersionUID = 1L;
+            @Override
             protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException
             {
                 try
@@ -116,6 +117,7 @@ public class TestHttpServer
             //ClientAuth.getInstance().setUser(USER_ID);
             //ClientAuth.getInstance().setPassword(PASSWORD.toCharArray());
             Authenticator.setDefault(new Authenticator() {
+            @Override
             protected PasswordAuthentication getPasswordAuthentication() {
                   PasswordAuthentication pa = new PasswordAuthentication (USER_ID, PASSWORD.toCharArray());
                   return pa;

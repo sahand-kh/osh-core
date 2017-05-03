@@ -41,6 +41,7 @@ import org.sensorhub.api.persistence.IRecordStoreInfo;
 import org.sensorhub.api.persistence.IStorageModule;
 import org.sensorhub.api.persistence.StorageException;
 import org.sensorhub.impl.module.AbstractModule;
+import org.vast.util.NumberUtils;
 
 
 /**
@@ -309,12 +310,14 @@ public class InMemoryBasicStorage extends AbstractModule<InMemoryStorageConfig> 
     }
     
     
+    @Override
     public void registerListener(IEventListener listener)
     {
         eventHandler.registerListener(listener);
     }
     
 
+    @Override
     public void unregisterListener(IEventListener listener)
     {
         eventHandler.unregisterListener(listener);
@@ -350,7 +353,7 @@ public class InMemoryBasicStorage extends AbstractModule<InMemoryStorageConfig> 
         protected final boolean matches(DataKey key)
         {
             return ( (key.producerID == null || key.producerID.equals(this.key.producerID)) &&
-                 (key.timeStamp == Double.NaN || (key.timeStamp == this.key.timeStamp)) );
+                 (Double.isNaN(key.timeStamp) || NumberUtils.ulpEquals(key.timeStamp, this.key.timeStamp)) );
         }
         
         protected final boolean matches(IDataFilter filter)
@@ -410,16 +413,19 @@ public class InMemoryBasicStorage extends AbstractModule<InMemoryStorageConfig> 
             final Iterator<DBRecord> it = getRecordIterator(filter);
             return new Iterator<DataBlock>() {
 
+                @Override
                 public final boolean hasNext()
                 {
                     return it.hasNext();
                 }
 
+                @Override
                 public final DataBlock next()
                 {
                     return it.next().getData();
                 }
 
+                @Override
                 public final void remove()
                 {
                     it.remove();                    
@@ -458,12 +464,14 @@ public class InMemoryBasicStorage extends AbstractModule<InMemoryStorageConfig> 
             return new Iterator<DBRecord>() {
                 DBRecord nextRec;
                 
+                @Override
                 public final boolean hasNext()
                 {
                     nextRec = fetchNext();
                     return (nextRec != null);
                 }
 
+                @Override
                 public final DBRecord next()
                 {
                     if (nextRec != null)
@@ -489,6 +497,7 @@ public class InMemoryBasicStorage extends AbstractModule<InMemoryStorageConfig> 
                     return null;
                 }
 
+                @Override
                 public final void remove()
                 {
                     it.remove();                    
