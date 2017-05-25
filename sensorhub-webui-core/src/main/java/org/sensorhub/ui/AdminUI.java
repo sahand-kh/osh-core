@@ -264,6 +264,10 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         configArea = new VerticalLayout();
         configArea.setMargin(true);
         splitPanel.addComponent(configArea);
+        
+        // select first tab
+        stack.setSelectedTab(1);
+        stack.setSelectedTab(0);
     }
     
     
@@ -779,9 +783,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     try 
                                     {
                                         if (selectedModule != null)
-                                        {
                                             registry.startModuleAsync(selectedModule);
-                                        }
                                     }
                                     catch (SensorHubException ex)
                                     {

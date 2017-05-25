@@ -47,6 +47,8 @@ import com.vaadin.ui.VerticalLayout;
 public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfig>> extends VerticalLayout implements IModuleAdminPanel<ModuleType>, UIConstants, IEventListener
 {
     transient ModuleType module;
+    HorizontalLayout header;
+    Label spinner;
     Button statusBtn;
     Button errorBtn;
     
@@ -62,27 +64,20 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
         setSpacing(true);
         
         // header = module name + spinner
-        HorizontalLayout header = new HorizontalLayout();
+        header = new HorizontalLayout();
         header.setSpacing(true);
         String moduleName = beanItem.getBean().name;
         String className = beanItem.getBean().getClass().getSimpleName();
         Label title = new Label(moduleName);
         title.setDescription(className);
         title.addStyleName(STYLE_H2);
-        header.addComponent(title);
-        if (module.getCurrentState() == ModuleState.INITIALIZING || module.getCurrentState() == ModuleState.STARTING)
-        {
-            Label spinner = new Label();
-            spinner.addStyleName(STYLE_SPINNER);
-            header.addComponent(spinner);
-        }
+        header.addComponent(title);        
         addComponent(header);
         addComponent(new Label("<hr/>", ContentMode.HTML));
         
         // status message
+        refreshState();
         refreshStatusMessage();
-        
-        // error box
         refreshErrorMessage();
         
         // apply changes button
@@ -106,6 +101,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                     form.commit();
                     if (module != null)
                     {
+                        beforeUpdateConfig();
                         SensorHub.getInstance().getModuleRegistry().updateModuleConfigAsync(module, beanItem.getBean());
                         DisplayUtils.showOperationSuccessful("Module Configuration Updated");
                     }
@@ -116,6 +112,32 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                 }
             }
         });
+    }
+    
+    
+    protected void beforeUpdateConfig()
+    {
+        
+    }
+    
+    
+    protected void refreshState()
+    {
+        if (spinner == null)
+        {
+            ModuleState state = module.getCurrentState();
+            if (state == ModuleState.INITIALIZING || state == ModuleState.STARTING)
+            {
+                spinner = new Label();
+                spinner.addStyleName(STYLE_SPINNER);
+                header.addComponent(spinner);
+            }
+        }
+        else
+        {
+            header.removeComponent(spinner);
+            spinner = null;
+        }
     }
     
     
@@ -231,7 +253,8 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                         public void run()
                         {
                             refreshStatusMessage();
-                            getUI().push();
+                            if (isAttached())
+                                getUI().push();
                         }
                     });                    
                     break;
@@ -242,7 +265,8 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                         public void run()
                         {
                             refreshErrorMessage();
-                            getUI().push();
+                            if (isAttached())
+                                getUI().push();
                         }
                     });                    
                     break;
@@ -252,9 +276,11 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                         @Override
                         public void run()
                         {
+                            refreshState();
                             refreshStatusMessage();
                             refreshErrorMessage();
-                            getUI().push();
+                            if (isAttached())
+                                getUI().push();
                         }
                     });  
                     break;
@@ -265,7 +291,8 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
                         {
                             DefaultModulePanel.this.removeAllComponents();
                             DefaultModulePanel.this.build(new MyBeanItem<ModuleConfig>(module.getConfiguration()), module);
-                            getUI().push();
+                            if (isAttached())
+                                getUI().push();
                         }
                     });  
                     break;*/
