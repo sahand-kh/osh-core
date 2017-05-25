@@ -107,7 +107,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     
     transient AdminUIConfig uiConfig;
     transient AdminUISecurity securityHandler;
-    transient Map<Class<?>, TreeTable> moduleTables = new HashMap<Class<?>, TreeTable>();
+    transient Map<Class<?>, TreeTable> moduleTables = new HashMap<>();
     VerticalLayout configArea;
     
     
@@ -465,7 +465,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     protected void buildNetworkModuleList(VerticalLayout layout)
     {
         ModuleRegistry reg = SensorHub.getInstance().getModuleRegistry();
-        ArrayList<IModule<?>> moduleList = new ArrayList<IModule<?>>();
+        ArrayList<IModule<?>> moduleList = new ArrayList<>();
         
         // add network modules to list
         moduleList.add(HttpServer.getInstance());
@@ -483,7 +483,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     protected void buildModuleList(VerticalLayout layout, final Class<?> configType)
     {
         ModuleRegistry reg = SensorHub.getInstance().getModuleRegistry();
-        ArrayList<IModule<?>> moduleList = new ArrayList<IModule<?>>();
+        ArrayList<IModule<?>> moduleList = new ArrayList<>();
         
         // add selected modules to list        
         for (IModule<?> module: reg.getLoadedModules())
@@ -611,14 +611,9 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
             {
                 try
                 {
-                    // make sure row is selected even on right click
-                    table.select(event.getItemId());
-                    
-                    // open bean item configuration
+                    // select and open module configuration
                     IModule<?> module = (IModule<?>)event.getItem().getItemProperty(PROP_MODULE_OBJECT).getValue();
-                    ModuleConfig config = module.getConfiguration().clone();
-                    MyBeanItem<ModuleConfig> beanItem = new MyBeanItem<ModuleConfig>(config);
-                    openModuleInfo(beanItem, module);
+                    selectModule(module, table);
                 }
                 catch (Exception e)
                 {
@@ -632,7 +627,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
             @Override
             public Action[] getActions(Object target, Object sender)
             {
-                List<Action> actions = new ArrayList<Action>(10);
+                List<Action> actions = new ArrayList<>(10);
                                 
                 if (target != null)
                 {                    
@@ -684,14 +679,10 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             try
                             {
                                 // load module instance
-                                IModule<?> module = registry.loadModule(config);
+                                registry.loadModule(config);
                                 
                                 // no need to add module to table here
                                 // it will be loaded when the LOADED event is received
-                                
-                                // show new module config panel
-                                MyBeanItem<ModuleConfig> newBeanItem = new MyBeanItem<ModuleConfig>(config);
-                                openModuleInfo(newBeanItem, module);
                             }
                             catch (NoClassDefFoundError e)
                             {
@@ -733,7 +724,8 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                     try
                                     {
                                         table.removeItem(selectedId);
-                                        registry.destroyModule(moduleId);                                        
+                                        registry.destroyModule(moduleId);
+                                        selectNone(table);
                                     }
                                     catch (SensorHubException ex)
                                     {                        
@@ -766,7 +758,6 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                                         if (selectedModule != null)
                                         {
                                             registry.startModuleAsync(selectedModule);
-                                            openModuleInfo((MyBeanItem<ModuleConfig>)item, selectedModule);
                                         }
                                     }
                                     catch (SensorHubException ex)
@@ -906,11 +897,35 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         {
             table.setChildrenAllowed(config.id, false);
         }
+        
+        selectModule(module, table);
+    }
+    
+    
+    protected void selectModule(IModule<?> module, TreeTable table)
+    {
+        table.select(module.getLocalID());
+        ModuleConfig config = module.getConfiguration().clone();
+        MyBeanItem<ModuleConfig> beanItem = new MyBeanItem<>(config);
+        openModuleInfo(beanItem, module);
+    }
+    
+    
+    protected void selectNone(TreeTable table)
+    {
+        Object itemId = table.getValue();
+        if (itemId != null)
+            table.unselect(itemId);
+        configArea.removeAllComponents();
     }
         
     
     protected void openModuleInfo(MyBeanItem<ModuleConfig> beanItem, IModule<?> module)
     {
+        // do nothing if config area hasn't been created yet
+        if (configArea == null)
+            return;
+        
         configArea.removeAllComponents();
         
         // get panel for this config object        
@@ -920,7 +935,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         
         // generate module admin panel        
         configArea.addComponent(panel);
-    }
+    }    
 
 
     @Override
