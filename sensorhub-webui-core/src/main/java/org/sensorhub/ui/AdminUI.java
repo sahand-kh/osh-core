@@ -78,6 +78,8 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
+import com.vaadin.ui.TabSheet.SelectedTabChangeEvent;
+import com.vaadin.ui.TabSheet.SelectedTabChangeListener;
 import com.vaadin.ui.TabSheet.Tab;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.CellStyleGenerator;
@@ -183,8 +185,27 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         
         // accordion with several sections
         moduleTables.clear();
-        Accordion stack = new Accordion();
+        final Accordion stack = new Accordion();
         stack.setSizeFull();
+        stack.addSelectedTabChangeListener(new SelectedTabChangeListener() {
+            @Override
+            public void selectedTabChange(SelectedTabChangeEvent event)
+            {
+                VerticalLayout tabLayout = (VerticalLayout)stack.getSelectedTab();                
+                if (tabLayout.getComponentCount() > 0)
+                {
+                    TreeTable table = (TreeTable)tabLayout.getComponent(0);
+                    Object itemId = table.getValue();
+                    if (itemId != null)
+                    {
+                        IModule<?> module = (IModule<?>)table.getItem(itemId).getItemProperty(PROP_MODULE_OBJECT).getValue();
+                        selectModule(module, table);
+                    }
+                    else
+                        selectNone(table);
+                }
+            }
+        });        
         VerticalLayout layout;
         Tab tab;
         
@@ -679,10 +700,12 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
                             try
                             {
                                 // load module instance
-                                registry.loadModule(config);
+                                IModule<?> module = registry.loadModule(config);
                                 
                                 // no need to add module to table here
                                 // it will be loaded when the LOADED event is received
+                                
+                                selectModule(module, table);
                             }
                             catch (NoClassDefFoundError e)
                             {
@@ -873,13 +896,13 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     
     protected void addModuleToTable(IModule<?> module, TreeTable table)
     {
-        ModuleConfig config = module.getConfiguration();
-                
-        Item newItem = table.addItem(config.id);
+        String moduleID = module.getLocalID();
+        
+        Item newItem = table.addItem(moduleID);
         if (newItem == null) // in case module was already added
             return;
         
-        newItem.getItemProperty(PROP_NAME).setValue(config.name);
+        newItem.getItemProperty(PROP_NAME).setValue(module.getName());
         newItem.getItemProperty(PROP_STATE).setValue(module.getCurrentState());
         newItem.getItemProperty(PROP_MODULE_OBJECT).setValue(module);   
         
@@ -888,17 +911,19 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
         {
             for (ISensorModule<?> sensor: ((SensorSystem) module).getSensors().values())
             {
-                ModuleConfig subConfig = sensor.getConfiguration();
-                table.addItem(new Object[] {subConfig.name, sensor.getCurrentState(), sensor}, subConfig.id);
-                table.setParent(subConfig.id, config.id);
+                String subModuleID = sensor.getLocalID();
+                table.addItem(new Object[] {sensor.getName(), sensor.getCurrentState(), sensor}, subModuleID);
+                table.setParent(subModuleID, moduleID);
             }
         }
         else
         {
-            table.setChildrenAllowed(config.id, false);
+            table.setChildrenAllowed(moduleID, false);
         }
         
-        selectModule(module, table);
+        // select if first item to be added
+        if (table.size() == 1)
+            table.select(moduleID);
     }
     
     

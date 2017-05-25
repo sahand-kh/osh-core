@@ -50,7 +50,7 @@ public class MyBeanItem<BeanType> implements Item
     
     
     final transient BeanType bean;
-    HashMap<Object, Property<?>> properties = new LinkedHashMap<Object, Property<?>>();
+    HashMap<Object, Property<?>> properties = new LinkedHashMap<>();
     String prefix = NO_PREFIX;
     
     
@@ -84,7 +84,9 @@ public class MyBeanItem<BeanType> implements Item
     {
         for (Field f: getFields(bean.getClass(), Modifier.PUBLIC))
         {
-            if (Modifier.isStatic(f.getModifiers()))
+            // skip static and transient fields
+            int modifiers = f.getModifiers();
+            if (Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers))
                 continue;
             
             String fullName = prefix + f.getName();
@@ -113,7 +115,7 @@ public class MyBeanItem<BeanType> implements Item
                 Class<?> eltType = (Class<?>)listType.getActualTypeArguments()[0];
                 
                 Collection<?> listObj = (Collection<?>)fieldVal;
-                MyBeanItemContainer<Object> container = new MyBeanItemContainer<Object>(listObj, eltType, fullName + PROP_SEPARATOR);
+                MyBeanItemContainer<Object> container = new MyBeanItemContainer<>(listObj, eltType, fullName + PROP_SEPARATOR);
                 addItemProperty(fullName, new ContainerProperty(bean, f, container));
             }
             
@@ -130,7 +132,7 @@ public class MyBeanItem<BeanType> implements Item
                 Class<?> eltType = (Class<?>)mapType.getActualTypeArguments()[1];
                 
                 Map<String, ?> mapObj = (Map<String, ?>)fieldVal;
-                MyBeanItemContainer<Object> container = new MyBeanItemContainer<Object>(mapObj, eltType, fullName + PROP_SEPARATOR);
+                MyBeanItemContainer<Object> container = new MyBeanItemContainer<>(mapObj, eltType, fullName + PROP_SEPARATOR);
                 addItemProperty(fullName, new MapProperty(bean, f, container));
             }
             
@@ -139,7 +141,7 @@ public class MyBeanItem<BeanType> implements Item
             {
                 MyBeanItem<Object> beanItem = null;
                 if (fieldVal != null)
-                    beanItem = new MyBeanItem<Object>(fieldVal, fullName + PROP_SEPARATOR);
+                    beanItem = new MyBeanItem<>(fieldVal, fullName + PROP_SEPARATOR);
                 addItemProperty(fullName, new ComplexProperty(bean, f, beanItem));
             }
         }
@@ -149,7 +151,7 @@ public class MyBeanItem<BeanType> implements Item
     @SuppressWarnings("rawtypes")
     protected void addMethodProperties(String prefix, Object bean)
     {
-        Map<String, Field> fieldMap = new HashMap<String, Field>();
+        Map<String, Field> fieldMap = new HashMap<>();
         for (Field f: getFields(bean.getClass(), Modifier.PROTECTED | Modifier.PRIVATE))
             fieldMap.put(f.getName(), f);
         
@@ -174,7 +176,7 @@ public class MyBeanItem<BeanType> implements Item
     
     protected List<Field> getFields(Class<?> beanClass, int modifier)
     {
-        List<Field> selectedFields = new ArrayList<Field>(50);
+        List<Field> selectedFields = new ArrayList<>(50);
         collectFields(selectedFields, beanClass, modifier);
         return selectedFields;
     }

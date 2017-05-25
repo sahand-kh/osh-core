@@ -38,13 +38,12 @@ public interface UIConstants
     // constants for icon resources
     public static final Resource ADD_ICON = new ThemeResource("icons/add.gif");
     public static final Resource DEL_ICON = new ThemeResource("icons/remove.gif");
-    public static final Resource LINK_ICON = FontAwesome.LINK;//new ThemeResource("icons/link.png");
-    public static final Resource APPLY_ICON = FontAwesome.SAVE;//new ThemeResource("icons/save.png");
-    public static final Resource REFRESH_ICON = FontAwesome.REFRESH;//new ThemeResource("icons/refresh.gif");
-    public static final Resource EDIT_ICON = FontAwesome.EDIT;//new ThemeResource("icons/refresh.gif");
-    public static final Resource ERROR_ICON = FontAwesome.WARNING;//new ThemeResource("icons/errorwarning.gif");
-    public static final Resource INFO_ICON = FontAwesome.INFO_CIRCLE;//new ThemeResource("icons/info.gif");
-    public static final Resource HELP_ICON = new ThemeResource("icons/help.gif");
+    public static final Resource LINK_ICON = FontAwesome.LINK;
+    public static final Resource APPLY_ICON = FontAwesome.SAVE;
+    public static final Resource REFRESH_ICON = FontAwesome.REFRESH;
+    public static final Resource EDIT_ICON = FontAwesome.EDIT;
+    public static final Resource ERROR_ICON = FontAwesome.WARNING;
+    public static final Resource INFO_ICON = FontAwesome.INFO_CIRCLE;
     
     // constants for messages
     public static final String MSG_REQUIRED_FIELD = "Value is required";
