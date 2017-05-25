@@ -38,7 +38,12 @@ public abstract class JarModuleProvider implements IModuleProvider
     {
         String name = manifestInfo.getModuleName();
         if (ModuleUtils.MODULE_NAME.equals(name))
-            return getModuleClass().getSimpleName();
+        {
+            if (getModuleClass() != null) 
+                return getModuleClass().getSimpleName();
+            else
+                return this.getClass().getPackage().getName();                
+        }
         else
             return name;
     }
