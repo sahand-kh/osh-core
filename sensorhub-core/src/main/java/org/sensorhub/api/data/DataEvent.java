@@ -76,7 +76,7 @@ public class DataEvent extends EntityEvent<Type>
         this.timeStamp = timeStamp;
         this.source = dataInterface;
         this.channelID = dataInterface.getName();
-        this.relatedEntityID = dataInterface.getParentModule().getUniqueIdentifier();
+        this.relatedEntityID = dataInterface.getProducer().getUniqueIdentifier();
         this.records = records;
 	}
 		
