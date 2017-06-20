@@ -28,6 +28,7 @@ import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.persistence.StorageConfig;
+import org.sensorhub.api.processing.ProcessConfig;
 import org.sensorhub.api.sensor.SensorConfig;
 import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.impl.persistence.StreamStorageConfig;
@@ -43,28 +44,16 @@ import com.vaadin.server.VaadinServlet;
 public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEventListener
 {
     protected static final String SERVLET_PARAM_UI_CLASS = "UI";
-    protected static final String SERVLET_PARAM_MODULE_ID = "module_id";
+    protected static final String SERVLET_PARAM_MODULE = "module_instance";
     protected static final String WIDGETSET = "widgetset";
     
-    private static AdminUIModule singleton;
     VaadinServlet vaadinServlet;
-    AdminUISecurity securityHandler;
-    Map<String, Class<? extends IModuleConfigForm>> customForms = new HashMap<String, Class<? extends IModuleConfigForm>>();
-    Map<String, Class<? extends IModuleAdminPanel<?>>> customPanels = new HashMap<String, Class<? extends IModuleAdminPanel<?>>>();
+    Map<String, Class<? extends IModuleConfigForm>> customForms = new HashMap<>();
+    Map<String, Class<? extends IModuleAdminPanel<?>>> customPanels = new HashMap<>();
     
     
     public AdminUIModule()
     {
-        if (singleton != null)
-            throw new IllegalStateException("Cannot create several AdminUI modules");
-        
-        singleton = this;
-    }
-    
-    
-    public static AdminUIModule getInstance()
-    {
-        return singleton;
     }
     
     
@@ -131,6 +120,7 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
             // load default panel builders
             customPanels.put(SensorConfig.class.getCanonicalName(), SensorAdminPanel.class);        
             customPanels.put(StorageConfig.class.getCanonicalName(), StorageAdminPanel.class);
+            customPanels.put(ProcessConfig.class.getCanonicalName(), ProcessAdminPanel.class);        
             customPanels.put(NetworkConfig.class.getCanonicalName(), NetworkAdminPanel.class);
             customPanels.put(SOSServiceConfig.class.getCanonicalName(), SOSAdminPanel.class);
             
@@ -156,10 +146,9 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
         // reset java util logging config so we don't get annoying atmosphere logs
         LogManager.getLogManager().reset();//.getLogger("org.atmosphere").setLevel(Level.OFF);
         
-        vaadinServlet = new AdminUIServlet(securityHandler);
-        Map<String, String> initParams = new HashMap<String, String>();
+        vaadinServlet = new AdminUIServlet((AdminUISecurity)securityHandler);
+        Map<String, String> initParams = new HashMap<>();
         initParams.put(SERVLET_PARAM_UI_CLASS, AdminUI.class.getCanonicalName());
-        initParams.put(SERVLET_PARAM_MODULE_ID, getLocalID());
         if (config.widgetSet != null)
             initParams.put(WIDGETSET, config.widgetSet);
         initParams.put("productionMode", "true");  // set to false to compile theme on-the-fly
@@ -179,6 +168,7 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
         }));
         httpServer.deployServlet(vaadinServlet, initParams, "/admin/*", "/VAADIN/*");
         System.setErr(oldStdErr);
+        vaadinServlet.getServletContext().setAttribute(SERVLET_PARAM_MODULE, this);
         
         // setup security
         httpServer.addServletSecurity("/admin/*", true);
@@ -224,7 +214,7 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
         }
         
         if (panel == null)
-            return new DefaultModulePanel<IModule<?>>();
+            return new DefaultModulePanel<>();
         else
             return panel;
     }
@@ -290,6 +280,12 @@ public class AdminUIModule extends AbstractModule<AdminUIConfig> implements IEve
             else if (newState == ModuleState.STOPPED)
                 stop();
         }
+    }
+    
+    
+    protected AdminUISecurity getSecurityHandler()
+    {
+        return (AdminUISecurity)this.securityHandler;
     }
 
 }

@@ -32,13 +32,14 @@ import org.sensorhub.api.common.Event;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.data.DataEvent;
+import org.sensorhub.api.data.IDataProducer;
+import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorDataEvent;
 import org.sensorhub.api.sensor.SensorEvent;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.comm.RobustIPConnection;
 import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.impl.module.RobustConnection;
@@ -75,11 +76,11 @@ import org.vast.swe.SWEData;
 public class SOSTClient extends AbstractModule<SOSTClientConfig> implements IClientModule<SOSTClientConfig>, IEventListener
 {
     RobustConnection connection;
-    ISensorModule<?> sensor;
+    IDataProducer dataSource;
     SOSUtils sosUtils = new SOSUtils();  
     String sosEndpointUrl;
     String offering;
-    Map<ISensorDataInterface, StreamInfo> dataStreams;
+    Map<IStreamingDataInterface, StreamInfo> dataStreams;
     
     
     public class StreamInfo
@@ -99,7 +100,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     
     public SOSTClient()
     {
-        this.dataStreams = new LinkedHashMap<ISensorDataInterface, StreamInfo>();
+        this.dataStreams = new LinkedHashMap<>();
     }
     
     
@@ -143,7 +144,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         // get handle to sensor data source
         try
         {
-            sensor = SensorHub.getInstance().getSensorManager().getModuleById(config.sensorID);
+            dataSource = (ISensorModule<?>)getParentHub().getModuleRegistry().getModuleById(config.sensorID);
         }
         catch (Exception e)
         {
@@ -167,7 +168,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
                     request.setConnectTimeOut(connectConfig.connectTimeout);
                     request.setService(SOSUtils.SOS);
                     request.setGetServer(getSosEndpointUrl());
-                    caps = (SOSServiceCapabilities)sosUtils.sendRequest(request, false);
+                    caps = sosUtils.sendRequest(request, false);
                 }
                 catch (OWSException e)
                 {
@@ -211,8 +212,8 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
             try
             {
                 // register to sensor events            
-                sensor.registerListener(this);
-                reportStatus("Waiting for data source " + MsgUtils.moduleString(sensor));
+                dataSource.registerListener(this);
+                reportStatus("Waiting for data source " + MsgUtils.entityString(dataSource));
                 
                 // we'll actually start when we receive sensor STARTED event
             }
@@ -235,8 +236,8 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         try
         {   
             // register sensor
-            registerSensor(sensor);
-            getLogger().info("Sensor " + MsgUtils.moduleString(sensor) + " registered with SOS");
+            registerSensor(dataSource);
+            getLogger().info("Sensor {} registered with SOS", MsgUtils.entityString(dataSource));
         }
         catch (Exception e)
         {
@@ -245,7 +246,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         
         
         // register all stream templates
-        for (ISensorDataInterface o: sensor.getAllOutputs().values())
+        for (IStreamingDataInterface o: dataSource.getAllOutputs().values())
         {
             try
             {
@@ -270,11 +271,11 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
             connection.cancel();
         
         // unregister from sensor
-        if (sensor != null)
-            sensor.unregisterListener(this);
+        if (dataSource != null)
+            dataSource.unregisterListener(this);
         
         // stop all streams
-        for (Entry<ISensorDataInterface, StreamInfo> entry: dataStreams.entrySet())
+        for (Entry<IStreamingDataInterface, StreamInfo> entry: dataStreams.entrySet())
             stopStream(entry.getKey(), entry.getValue());
     }
     
@@ -282,7 +283,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     /*
      * Stop listening and pushing data for the given stream
      */
-    protected void stopStream(ISensorDataInterface output, StreamInfo streamInfo)
+    protected void stopStream(IStreamingDataInterface output, StreamInfo streamInfo)
     {
         // unregister listeners
         output.unregisterListener(this);
@@ -310,6 +311,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         }
         catch (InterruptedException e)
         {
+            Thread.currentThread().interrupt();
         }
     }
     
@@ -317,20 +319,20 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     /*
      * Registers sensor with remote SOS
      */
-    protected void registerSensor(ISensorModule<?> sensor) throws OWSException
+    protected void registerSensor(IDataProducer producer) throws OWSException
     {
         // build insert sensor request
         InsertSensorRequest req = new InsertSensorRequest();
         req.setConnectTimeOut(config.connection.connectTimeout);
         req.setPostServer(getSosEndpointUrl());
         req.setVersion("2.0");
-        req.setProcedureDescription(sensor.getCurrentDescription());
+        req.setProcedureDescription(producer.getCurrentDescription());
         req.setProcedureDescriptionFormat(SWESUtils.DEFAULT_PROCEDURE_FORMAT);
         req.getObservationTypes().add(IObservation.OBS_TYPE_RECORD);
         req.getFoiTypes().add("gml:Feature");
         
         // send request and get assigned ID
-        InsertSensorResponse resp = (InsertSensorResponse)sosUtils.sendRequest(req, false);
+        InsertSensorResponse resp = sosUtils.sendRequest(req, false);
         this.offering = resp.getAssignedOffering();
     }
     
@@ -338,15 +340,15 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     /*
      * Update sensor description at remote SOS
      */
-    protected void updateSensor(ISensorModule<?> sensor) throws OWSException
+    protected void updateSensor(IDataProducer producer) throws OWSException
     {
         // build update sensor request
         UpdateSensorRequest req = new UpdateSensorRequest(SOSUtils.SOS);
         req.setConnectTimeOut(config.connection.connectTimeout);
         req.setPostServer(getSosEndpointUrl());
         req.setVersion("2.0");
-        req.setProcedureId(sensor.getUniqueIdentifier());
-        req.setProcedureDescription(sensor.getCurrentDescription());
+        req.setProcedureId(producer.getUniqueIdentifier());
+        req.setProcedureDescription(producer.getCurrentDescription());
         req.setProcedureDescriptionFormat(SWESUtils.DEFAULT_PROCEDURE_FORMAT);
         
         // send request
@@ -357,7 +359,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     /*
      * Prepare to send the given sensor output data to the remote SOS server
      */
-    protected void registerDataStream(ISensorDataInterface sensorOutput) throws OWSException
+    protected void registerDataStream(IStreamingDataInterface output) throws OWSException
     {
         // generate insert result template
         InsertResultTemplateRequest req = new InsertResultTemplateRequest();
@@ -365,34 +367,34 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         req.setPostServer(getSosEndpointUrl());
         req.setVersion("2.0");
         req.setOffering(offering);
-        req.setResultStructure(sensorOutput.getRecordDescription());
-        req.setResultEncoding(sensorOutput.getRecommendedEncoding());
+        req.setResultStructure(output.getRecordDescription());
+        req.setResultEncoding(output.getRecommendedEncoding());
         ObservationImpl obsTemplate = new ObservationImpl();
         
         // set FOI if known
-        AbstractFeature foi = sensorOutput.getProducer().getCurrentFeatureOfInterest();
+        AbstractFeature foi = output.getProducer().getCurrentFeatureOfInterest();
         if (foi != null)
             obsTemplate.setFeatureOfInterest(foi);
         req.setObservationTemplate(obsTemplate);
         
         // send request
-        InsertResultTemplateResponse resp = (InsertResultTemplateResponse)sosUtils.sendRequest(req, false);
+        InsertResultTemplateResponse resp = sosUtils.sendRequest(req, false);
         
         // add stream info to map
         StreamInfo streamInfo = new StreamInfo();
         streamInfo.templateID = resp.getAcceptedTemplateId();
-        streamInfo.resultData.setElementType(sensorOutput.getRecordDescription());
-        streamInfo.resultData.setEncoding(sensorOutput.getRecommendedEncoding());
-        streamInfo.measPeriodMs = (int)(sensorOutput.getAverageSamplingPeriod()*1000);
+        streamInfo.resultData.setElementType(output.getRecordDescription());
+        streamInfo.resultData.setEncoding(output.getRecommendedEncoding());
+        streamInfo.measPeriodMs = (int)(output.getAverageSamplingPeriod()*1000);
         streamInfo.minRecordsPerRequest = 1;//(int)(1.0 / sensorOutput.getAverageSamplingPeriod());
-        dataStreams.put(sensorOutput, streamInfo);
+        dataStreams.put(output, streamInfo);
         
         // start thread pool
-        BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(config.connection.maxQueueSize);
+        BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(config.connection.maxQueueSize);
         streamInfo.threadPool = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS, workQueue);
         
         // register to data events
-        sensorOutput.registerListener(this);
+        output.registerListener(this);
     }
     
     
@@ -426,7 +428,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
             {
                 try
                 {
-                    updateSensor(sensor);
+                    updateSensor(dataSource);
                 }
                 catch (OWSException ex)
                 {
@@ -457,7 +459,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
             if (streamInfo.threadPool.getQueue().remainingCapacity() == 0)
             {
                 String outputName = ((SensorDataEvent)e).getSource().getName();
-                getLogger().warn("Too many '" + outputName + "' records to send to SOS-T. Bandwidth cannot keep up.");
+                getLogger().warn("Too many '{}' records to send to SOS-T. Bandwidth cannot keep up.", outputName);
                 getLogger().info("Skipping records by purging record queue");
                 streamInfo.threadPool.getQueue().clear();
                 return;
@@ -502,7 +504,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     private void sendAsNewRequest(final SensorDataEvent e, final StreamInfo streamInfo)
     {
         // append records to buffer
-        for (DataBlock record: ((SensorDataEvent)e).getRecords())
+        for (DataBlock record: e.getRecords())
             streamInfo.resultData.pushNextDataBlock(record);
         
         // send request if min record count is reached
@@ -643,7 +645,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     }
     
     
-    public Map<ISensorDataInterface, StreamInfo> getDataStreams()
+    public Map<IStreamingDataInterface, StreamInfo> getDataStreams()
     {
         return dataStreams;
     }
@@ -652,6 +654,6 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
     @Override
     public void cleanup() throws SensorHubException
     {
-        
+        // nothing to clean
     }
 }

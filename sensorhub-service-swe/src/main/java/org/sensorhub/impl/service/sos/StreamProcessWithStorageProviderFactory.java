@@ -15,9 +15,8 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl.service.sos;
 
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.processing.IStreamProcessModule;
+import org.sensorhub.api.processing.IDataProcess;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.utils.MsgUtils;
 import org.vast.util.TimeExtent;
 
@@ -31,15 +30,15 @@ import org.vast.util.TimeExtent;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 28, 2015
  */
-public class StreamProcessWithStorageProviderFactory extends StreamWithStorageProviderFactory<IStreamProcessModule<?>>
+public class StreamProcessWithStorageProviderFactory extends StreamWithStorageProviderFactory<IDataProcess>
 {
     StreamProcessProviderConfig streamProviderConfig;
     
     
-    public StreamProcessWithStorageProviderFactory(SOSServlet service, StreamProcessProviderConfig config) throws SensorHubException
+    public StreamProcessWithStorageProviderFactory(SOSServlet servlet, StreamProcessProviderConfig config) throws SensorHubException
     {
-        super(service, config,
-              (IStreamProcessModule<?>)SensorHub.getInstance().getProcessingManager().getModuleById(config.processID));
+        super(servlet, config,
+              (IDataProcess)servlet.getParentHub().getModuleRegistry().getModuleById(config.processID));
         
         this.streamProviderConfig = config;
     }
@@ -53,7 +52,7 @@ public class StreamProcessWithStorageProviderFactory extends StreamWithStoragePr
         if (timeRange.isBaseAtNow() || timeRange.isBeginNow())
         {
             if (!producer.isStarted())
-                throw new ServiceException("Process " + MsgUtils.moduleString(producer) + " is disabled");
+                throw new ServiceException("Process " + MsgUtils.entityString(producer) + " is disabled");
             
             try
             {

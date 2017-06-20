@@ -16,9 +16,8 @@ package org.sensorhub.impl.service.sos;
 
 import java.io.IOException;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.sensor.ISensorModule;
+import org.sensorhub.api.sensor.ISensor;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.utils.MsgUtils;
 import org.vast.util.TimeExtent;
 
@@ -32,15 +31,15 @@ import org.vast.util.TimeExtent;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 15, 2014
  */
-public class SensorWithStorageProviderFactory extends StreamWithStorageProviderFactory<ISensorModule<?>>
+public class SensorWithStorageProviderFactory extends StreamWithStorageProviderFactory<ISensor>
 {
     SensorDataProviderConfig sensorProviderConfig;
     
     
-    public SensorWithStorageProviderFactory(SOSServlet service, SensorDataProviderConfig config) throws SensorHubException
+    public SensorWithStorageProviderFactory(SOSServlet servlet, SensorDataProviderConfig config) throws SensorHubException
     {
-        super(service, config,
-              SensorHub.getInstance().getSensorManager().getModuleById(config.sensorID));
+        super(servlet, config,
+              (ISensor)servlet.getParentHub().getModuleRegistry().getModuleById(config.sensorID));
         this.sensorProviderConfig = config;
         
         if (producer.isStarted() && storage.isStarted())
@@ -61,7 +60,7 @@ public class SensorWithStorageProviderFactory extends StreamWithStorageProviderF
         if (timeRange.isBaseAtNow() || timeRange.isBeginNow())
         {
             if (!producer.isStarted())
-                throw new ServiceException("Sensor " + MsgUtils.moduleString(producer) + " is disabled");
+                throw new ServiceException("Sensor " + MsgUtils.entityString(producer) + " is disabled");
             
             try
             {

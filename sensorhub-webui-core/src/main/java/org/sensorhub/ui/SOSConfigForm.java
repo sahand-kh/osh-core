@@ -43,7 +43,7 @@ public class SOSConfigForm extends GenericConfigForm
     {
         if (propId.equals(PROP_DATAPROVIDERS))
         {
-            Map<String, Class<?>> classList = new LinkedHashMap<String, Class<?>>();
+            Map<String, Class<?>> classList = new LinkedHashMap<>();
             try
             {
                 classList.put("Sensor Data Source", Class.forName(SOS_PACKAGE + "SensorDataProviderConfig"));
@@ -52,7 +52,7 @@ public class SOSConfigForm extends GenericConfigForm
             }
             catch (ClassNotFoundException e)
             {
-                AdminUIModule.getInstance().getLogger().error("Cannot find SOS provider class", e);
+                getLogger().error("Cannot find SOS provider class", e);
             }
             return classList;
         }

@@ -34,6 +34,7 @@ import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
+import org.sensorhub.api.common.EntityEvent;
 import org.sensorhub.api.common.Event;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
@@ -58,8 +59,6 @@ import org.sensorhub.api.persistence.IRecordStoreInfo;
 import org.sensorhub.api.persistence.ObsKey;
 import org.sensorhub.api.persistence.StorageConfig;
 import org.sensorhub.api.persistence.StorageException;
-import org.sensorhub.api.sensor.SensorEvent;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.vast.swe.SWEHelper;
@@ -107,6 +106,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
             storageConfig.name = getName();
             Class<?> clazz = Class.forName(storageConfig.moduleClass);
             storage = (IRecordStorageModule<StorageConfig>)clazz.newInstance();
+            storage.setParentHub(hub);
             storage.init(storageConfig);
             storage.start();
         }
@@ -130,7 +130,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         }
         
         // retrieve reference to data source
-        ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
+        ModuleRegistry moduleReg = hub.getModuleRegistry();
         dataSourceRef = moduleReg.getModuleRef(config.dataSourceID);
         
         // register to receive data source events
@@ -212,7 +212,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         if (dataSource instanceof IMultiSourceDataProducer && storage instanceof IMultiSourceStorage)
         {
             IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)dataSource;
-            for (String entityID: multiSource.getEntityIDs())
+            for (String entityID: multiSource.getEntities().keySet())
                 ensureProducerInfo(entityID);
         }
     }
@@ -226,7 +226,7 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         IDataProducer dataSource = dataSourceRef.get();
         if (dataSource != null && dataSource instanceof IMultiSourceDataProducer && storage instanceof IMultiSourceStorage)
         {
-            IDataProducer producer = ((IMultiSourceDataProducer)dataSource).getProducer(producerID);
+            IDataProducer producer = ((IMultiSourceDataProducer)dataSource).getEntities().get(producerID);
             if (producer != null)
             {
                 IBasicStorage dataStore = ((IMultiSourceStorage<?>)storage).getDataStore(producerID);
@@ -279,8 +279,8 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
         if (dataSource instanceof IMultiSourceDataProducer)
         {
             IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)dataSource;
-            for (String entityID: multiSource.getEntityIDs())
-                disconnectDataSource(multiSource.getProducer(entityID));
+            for (String entityID: multiSource.getEntities().keySet())
+                disconnectDataSource(multiSource.getEntities().get(entityID));
         }
     }
     
@@ -417,15 +417,15 @@ public class GenericStreamStorage extends AbstractModule<StreamStorageConfig> im
                 }
             }
             
-            else if (e instanceof SensorEvent)
+            else if (e instanceof EntityEvent)
             {
-                SensorEvent.Type type = ((SensorEvent) e).getType();
+                EntityEvent.Type type = ((EntityEvent<EntityEvent.Type>) e).getType();
                 
-                if (type == SensorEvent.Type.SENSOR_ADDED)
+                if (type == EntityEvent.Type.ENTITY_ADDED)
                 {
-                    ensureProducerInfo(((SensorEvent) e).getRelatedEntityID());
+                    ensureProducerInfo(((EntityEvent<?>)e).getRelatedEntityID());
                 }
-                if (type == SensorEvent.Type.SENSOR_CHANGED)
+                if (type == EntityEvent.Type.ENTITY_CHANGED)
                 {
                     // TODO check that description was actually updated?
                     // in the current state, the same description would be added at each restart

@@ -27,6 +27,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.sensorhub.api.sensor.SensorConfig;
+import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.service.sps.SPSConnectorConfig;
 import org.sensorhub.impl.service.sps.SPSService;
 import org.sensorhub.impl.service.sps.SensorConnectorConfig;
@@ -92,6 +93,7 @@ public class TestSPSTService
     protected InsertSensorRequest buildInsertSensor() throws Exception
     {
         FakeSensor sensor = new FakeSensor();
+        sensor.setParentHub(new SensorHub());
         SensorConfig config = new SensorConfig();
         config.id = "REG_SENSOR";
         config.name = "Auto-Registered Sensor";

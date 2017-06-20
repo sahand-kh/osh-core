@@ -18,11 +18,11 @@ import java.util.Collection;
 import org.sensorhub.api.comm.ICommNetwork;
 import org.sensorhub.api.comm.ICommNetwork.NetworkType;
 import org.sensorhub.api.comm.IDeviceInfo;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.ui.NetworkAdminPanel.NetworkScanPanel;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
@@ -48,7 +48,7 @@ public class NetworkAddressSelectionPopup extends Window
         layout.setMargin(true);
         
         // create network + address selection panel
-        Collection<ICommNetwork<?>> networks = SensorHub.getInstance().getNetworkManager().getLoadedModules(addressType);
+        Collection<ICommNetwork<?>> networks = ((AdminUI)UI.getCurrent()).getParentHub().getNetworkManager().getLoadedModules(addressType);
         ICommNetwork<?> network = networks.iterator().next();
         final NetworkScanPanel scanPanel = new NetworkScanPanel(network);
         scanPanel.setMargin(false);

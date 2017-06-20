@@ -18,20 +18,21 @@ import java.security.AccessControlException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.security.IPermission;
 import org.sensorhub.api.security.IUserInfo;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.security.ModulePermissions;
 import org.sensorhub.impl.security.PermissionRequest;
 
 
 public class ModuleSecurity
 {    
+    final IModule<?> module;
     public final ModulePermissions rootPerm;
     protected boolean enable = true;
-    ThreadLocal<IUserInfo> currentUser = new ThreadLocal<IUserInfo>();
+    ThreadLocal<IUserInfo> currentUser = new ThreadLocal<>();
         
     
     public ModuleSecurity(IModule<?> module, String moduleTypeAlias, boolean enable)
     {
+        this.module = module;
         this.rootPerm = new ModulePermissions(module, moduleTypeAlias);
         this.enable = enable;
         
@@ -47,7 +48,7 @@ public class ModuleSecurity
     
     private final boolean isAccessControlEnabled()
     {
-        return SensorHub.getInstance().getSecurityManager().isAccessControlEnabled();
+        return module.getParentHub().getSecurityManager().isAccessControlEnabled();
     }
     
     
@@ -67,7 +68,7 @@ public class ModuleSecurity
             throw new SecurityException(perm.getErrorMessage() + ": No user specified");
         
         // request authorization
-        return SensorHub.getInstance().getSecurityManager().isAuthorized(user, new PermissionRequest(perm));
+        return module.getParentHub().getSecurityManager().isAuthorized(user, new PermissionRequest(perm));
     }
     
     
@@ -104,7 +105,7 @@ public class ModuleSecurity
             return;
         
         // lookup user info 
-        IUserInfo user = SensorHub.getInstance().getSecurityManager().getUserInfo(userID);
+        IUserInfo user = module.getParentHub().getSecurityManager().getUserInfo(userID);
         if (user == null)
             throw new SecurityException("Permission denied: Unknown user " + userID);
         
@@ -118,5 +119,14 @@ public class ModuleSecurity
     public void clearCurrentUser()
     {
         currentUser.remove();
+    }
+    
+    
+    /**
+     * Call to register module permissions on the sensor hub
+     */
+    protected void register()
+    {
+        module.getParentHub().getSecurityManager().registerModulePermissions(rootPerm);
     }
 }

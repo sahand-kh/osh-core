@@ -12,10 +12,10 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.api.config;
+package org.sensorhub.api;
 
 
-public interface IGlobalConfig
+public interface ISensorHubConfig
 {
 
     public String getModuleConfigPath();

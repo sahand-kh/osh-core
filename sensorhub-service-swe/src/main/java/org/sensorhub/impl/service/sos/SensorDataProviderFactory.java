@@ -18,9 +18,8 @@ import net.opengis.sensorml.v20.AbstractProcess;
 import java.io.IOException;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.sensor.ISensorModule;
+import org.sensorhub.api.sensor.ISensor;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 
 
 /**
@@ -32,14 +31,14 @@ import org.sensorhub.impl.SensorHub;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Sep 15, 2013
  */
-public class SensorDataProviderFactory extends StreamDataProviderFactory<ISensorModule<?>> implements ISOSDataProviderFactory, IEventListener
+public class SensorDataProviderFactory extends StreamDataProviderFactory<ISensor> implements ISOSDataProviderFactory, IEventListener
 {
     
     
-    protected SensorDataProviderFactory(SOSServlet service, SensorDataProviderConfig config) throws SensorHubException
+    protected SensorDataProviderFactory(SOSServlet servlet, SensorDataProviderConfig config) throws SensorHubException
     {
-        super(service, config,
-              SensorHub.getInstance().getSensorManager().getModuleById(config.sensorID),
+        super(servlet, config,
+              (ISensor)servlet.getParentHub().getModuleRegistry().getModuleById(config.sensorID),
               "Sensor");
     }
     

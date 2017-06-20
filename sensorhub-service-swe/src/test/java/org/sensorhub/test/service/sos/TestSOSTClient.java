@@ -25,8 +25,10 @@ import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorConfig;
+import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.client.sost.SOSTClient;
 import org.sensorhub.impl.client.sost.SOSTClientConfig;
+import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.security.ClientAuth;
 import org.sensorhub.impl.service.HttpServer;
 import org.sensorhub.impl.service.sos.SOSProviderConfig;
@@ -47,7 +49,9 @@ public class TestSOSTClient
     static final String SENSOR_UID = "urn:test:newsensor:0002";
     static final double SAMPLING_PERIOD = 0.2;
     static final int NUM_GEN_SAMPLES = 4;
+    
     TestSOSService sosTest;
+    ModuleRegistry moduleRegistry;
     Exception asyncError;
     int recordCounter = 0;
     
@@ -55,8 +59,12 @@ public class TestSOSTClient
     @Before
     public void setup() throws Exception
     {
+        // start SOS service
         sosTest = new TestSOSService();
         sosTest.setup();
+        
+        // create separate hub for client
+        moduleRegistry = new SensorHub().getModuleRegistry();
         ClientAuth.createInstance(null);
     }
     
@@ -68,7 +76,7 @@ public class TestSOSTClient
         sensorCfg.autoStart = false;
         sensorCfg.moduleClass = FakeSensorNetWithFoi.class.getCanonicalName();
         sensorCfg.name = "Sensor1";
-        FakeSensor sensor = (FakeSensor)sosTest.registry.loadModule(sensorCfg);
+        FakeSensor sensor = (FakeSensor)moduleRegistry.loadModule(sensorCfg);
         sensor.setSensorUID(SENSOR_UID);
         sensor.setDataInterfaces(new FakeSensorData(sensor, TestSOSService.NAME_OUTPUT1, 10, SAMPLING_PERIOD, numSamples));
         sensor.requestInit(false);
@@ -101,8 +109,7 @@ public class TestSOSTClient
         config.connection.usePersistentConnection = persistent;
         config.connection.maxConnectErrors = 2;
         
-        final SOSTClient client = new SOSTClient();
-        client.setConfiguration(config);
+        final SOSTClient client = (SOSTClient)moduleRegistry.loadModule(config);
         client.requestInit(false);
         
         if (async)

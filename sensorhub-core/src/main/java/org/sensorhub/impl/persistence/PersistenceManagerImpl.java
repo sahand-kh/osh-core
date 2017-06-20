@@ -16,19 +16,16 @@ package org.sensorhub.impl.persistence;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.IModuleProvider;
-import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.persistence.IRecordStorageModule;
 import org.sensorhub.api.persistence.IPersistenceManager;
 import org.sensorhub.api.persistence.IStorageModule;
 import org.sensorhub.api.persistence.StorageConfig;
 import org.sensorhub.api.persistence.StorageException;
 import org.sensorhub.api.sensor.ISensorModule;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
-import org.sensorhub.utils.MsgUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,65 +45,24 @@ public class PersistenceManagerImpl implements IPersistenceManager
     protected String basePath;
     
     
-    public PersistenceManagerImpl(ModuleRegistry moduleRegistry, String basePath)
+    public PersistenceManagerImpl(ISensorHub hub, String basePath)
     {
-        this.moduleRegistry = moduleRegistry;
+        this.moduleRegistry = hub.getModuleRegistry();
         this.basePath = basePath;
-    }
-    
-    
-    @Override
-    public Collection<IStorageModule<?>> getLoadedModules()
-    {
-        ArrayList<IStorageModule<?>> enabledStorages = new ArrayList<IStorageModule<?>>();
-        
-        // retrieve all modules implementing ISensorInterface
-        for (IModule<?> module: moduleRegistry.getLoadedModules())
-        {
-            if (module instanceof IStorageModule)
-                enabledStorages.add((IStorageModule<?>)module);
-        }
-        
-        return enabledStorages;
-    }
-    
-    
-    @Override
-    public boolean isModuleLoaded(String moduleID)
-    {
-        return moduleRegistry.isModuleLoaded(moduleID);
-    }
-
-
-    @Override
-    public Collection<ModuleConfig> getAvailableModules()
-    {
-        return moduleRegistry.getAvailableModules(IStorageModule.class);
-    }
-
-
-    @Override
-    public IStorageModule<?> getModuleById(String moduleID) throws SensorHubException
-    {
-        IModule<?> module = moduleRegistry.getModuleById(moduleID);
-        
-        if (module instanceof IStorageModule<?>)
-            return (IStorageModule<?>)module;
-        else
-            throw new SensorHubException("Module " + MsgUtils.moduleString(module) + " is not a storage module");
     }
     
     
     @Override
     public Collection<IRecordStorageModule<?>> findStorageForSensor(String sensorLocalID) throws SensorHubException
     {
-        ArrayList<IRecordStorageModule<?>> sensorStorageList = new ArrayList<IRecordStorageModule<?>>();
+        ArrayList<IRecordStorageModule<?>> sensorStorageList = new ArrayList<>();
         
-        ISensorModule<?> sensorModule = SensorHub.getInstance().getSensorManager().getModuleById(sensorLocalID);
+        ISensorModule<?> sensorModule = (ISensorModule<?>)moduleRegistry.getModuleById(sensorLocalID);
         String sensorUID = sensorModule.getUniqueIdentifier();
         
         // find all basic storage modules whose data source UID is the same as the sensor UID
-        Collection<IStorageModule<?>> storageModules = getLoadedModules();
+        @SuppressWarnings("rawtypes")
+        Collection<IStorageModule> storageModules = moduleRegistry.getLoadedModules(IStorageModule.class);
         for (IStorageModule<?> module: storageModules)
         {
             if (module instanceof IRecordStorageModule<?>)

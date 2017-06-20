@@ -74,7 +74,7 @@ public class DisplayUtils
     {
         if (e != null)
         {
-            AdminUIModule.getInstance().getLogger().error(msg, e);
+            ((AdminUI)UI.getCurrent()).getLogger().error(msg, e);
             msg += "<br/>" + e.getMessage();
         }
         

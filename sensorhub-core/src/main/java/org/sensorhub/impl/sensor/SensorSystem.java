@@ -27,7 +27,6 @@ import org.sensorhub.api.processing.IProcessModule;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.ISensorModule;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.sensor.SensorSystemConfig.ProcessMember;
 import org.sensorhub.impl.sensor.SensorSystemConfig.SensorMember;
@@ -119,6 +118,7 @@ public class SensorSystem extends AbstractSensorModule<SensorSystemConfig>
             
             Class<?> clazz = Class.forName(config.moduleClass);
             IModule<ModuleConfig> module = (IModule<ModuleConfig>)clazz.newInstance();
+            module.setParentHub(hub);
             module.init(config);
             return module;
         }
@@ -227,7 +227,7 @@ public class SensorSystem extends AbstractSensorModule<SensorSystemConfig>
         super.loadState(loader);
         
         // also load sub modules state
-        ModuleRegistry reg = SensorHub.getInstance().getModuleRegistry();
+        ModuleRegistry reg = getParentHub().getModuleRegistry();
         for (ISensorModule<?> sensor: sensors.values())
         {
             loader = reg.getStateManager(sensor.getLocalID());
@@ -250,7 +250,7 @@ public class SensorSystem extends AbstractSensorModule<SensorSystemConfig>
         super.saveState(saver);
         
         // also save sub modules state
-        ModuleRegistry reg = SensorHub.getInstance().getModuleRegistry();
+        ModuleRegistry reg = getParentHub().getModuleRegistry();
         for (ISensorModule<?> sensor: sensors.values())
         {
             saver = reg.getStateManager(sensor.getLocalID());

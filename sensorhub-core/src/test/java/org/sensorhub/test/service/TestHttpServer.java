@@ -26,8 +26,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.sensorhub.impl.SensorHub;
+import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig.UserConfig;
 import org.sensorhub.impl.service.HttpServer;
@@ -40,13 +42,23 @@ public class TestHttpServer
     private static String USER_ID = "admin";
     private static String PASSWORD = "pwd";
     
+    ModuleRegistry registry;
+    
+    
+    @Before
+    public void setup()
+    {
+        System.out.println("\n*****************************");
+        registry = new SensorHub().getModuleRegistry(); 
+    }
+    
     
     private HttpServerConfig startServer(AuthMethod authMethod) throws Exception
     {
         HttpServerConfig config = new HttpServerConfig();
         config.autoStart = true;
         config.authMethod = authMethod;        
-        SensorHub.getInstance().getModuleRegistry().loadModule(config);
+        registry.loadModule(config);
         return config;
     }
     
@@ -59,7 +71,7 @@ public class TestHttpServer
         user.userID = USER_ID;
         user.password = PASSWORD;
         securityConfig.users.add(user);
-        SensorHub.getInstance().getModuleRegistry().loadModule(securityConfig);
+        registry.loadModule(securityConfig);
     }
     
     
@@ -162,9 +174,8 @@ public class TestHttpServer
     {
         try
         {
-            SensorHub.getInstance().getModuleRegistry().shutdown(false, false);
+            registry.shutdown(false, false);
             HttpServer.getInstance().cleanup();
-            SensorHub.clearInstance();
         }
         catch (Exception e)
         {

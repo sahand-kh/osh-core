@@ -16,6 +16,7 @@ package org.sensorhub.impl.module;
 
 import java.io.File;
 import java.io.PrintWriter;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
@@ -24,11 +25,11 @@ import org.sensorhub.api.module.IModuleStateManager;
 import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.common.EventBus;
 import org.sensorhub.utils.MsgUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.vast.util.Asserts;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
@@ -48,6 +49,7 @@ import ch.qos.logback.core.FileAppender;
  */
 public abstract class AbstractModule<ConfigType extends ModuleConfig> implements IModule<ConfigType>
 {
+    protected ISensorHub hub;
     protected Logger logger;
     protected IEventHandler eventHandler;
     protected ConfigType config;
@@ -59,8 +61,26 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     protected String statusMsg;
     
 
-    public AbstractModule()
+    public AbstractModule() {}
+    
+    
+    public void setParentHub(ISensorHub hub)
     {
+        if (this.hub != null)
+            throw new IllegalStateException("Parent hub has already been assigned");
+        this.hub = hub;
+    }
+    
+    
+    public ISensorHub getParentHub()
+    {
+        return this.hub;
+    }
+    
+    
+    protected void checkParentHub()
+    {
+        Asserts.checkState(hub != null, "Parent sensor hub hasn't been set");
     }
     
     
@@ -88,12 +108,14 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     @Override
     public void setConfiguration(ConfigType config)
     {
+        checkParentHub();
+        
         if (this.config != config)
         {
             this.config = config;
             
             // get assigned event handler
-            this.eventHandler = SensorHub.getInstance().getEventBus().registerProducer(config.id, EventBus.MAIN_TOPIC);
+            this.eventHandler = getParentHub().getEventBus().registerProducer(config.id, EventBus.MAIN_TOPIC);
             
             // set default security handler
             this.securityHandler = new ModuleSecurity(this, "all", false);
@@ -134,14 +156,14 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     @Override
     public boolean isInitialized()
     {
-        return (state.ordinal() >= ModuleState.INITIALIZED.ordinal());
+        return state.ordinal() >= ModuleState.INITIALIZED.ordinal();
     }
 
     
     @Override
     public boolean isStarted()
     {
-        return (state == ModuleState.STARTED);
+        return state == ModuleState.STARTED;
     }
     
     
@@ -263,8 +285,6 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 this.lastError = new SensorHubException(msg, error);
             else
                 this.lastError = error;
-            
-            //stateLock.notifyAll();
             
             if (!logAsDebug || getLogger().isDebugEnabled())
             {
@@ -516,13 +536,15 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     @Override
     public void cleanup() throws SensorHubException
     {
-        eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DELETED));
+        if (eventHandler != null)
+            eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DELETED));
     }
 
 
     @Override
     public void registerListener(IEventListener listener)
     {
+        checkParentHub();        
         synchronized (stateLock)
         {
             eventHandler.registerListener(listener);
@@ -538,12 +560,14 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     @Override
     public void unregisterListener(IEventListener listener)
     {
+        checkParentHub();
         eventHandler.unregisterListener(listener);
     }
     
     
     public Logger getLogger()
     {
+        checkParentHub();
         if (logger == null)
         {
             // first create logger object
@@ -553,19 +577,19 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
             logger = LoggerFactory.getLogger(this.getClass().getCanonicalName() + ":" + loggerId);
         
             // also configure logger to append to log file in module folder
-            File moduleDataFolder = SensorHub.getInstance().getModuleRegistry().getModuleDataFolder(localID);
+            File moduleDataFolder = getParentHub().getModuleRegistry().getModuleDataFolder(localID);
             if (moduleDataFolder != null && logger instanceof ch.qos.logback.classic.Logger)
             {
                 LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
                 ch.qos.logback.classic.Logger logback = (ch.qos.logback.classic.Logger)logger;                
                 
                 PatternLayoutEncoder ple = new PatternLayoutEncoder();
-                ple.setPattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] - %msg%n");
+                ple.setPattern("%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %marker - %msg%n");
                 ple.setContext(lc);
                 ple.start();
                 
                 File logFile = new File(moduleDataFolder, "log.txt");
-                FileAppender<ILoggingEvent> fa = new FileAppender<ILoggingEvent>();
+                FileAppender<ILoggingEvent> fa = new FileAppender<>();
                 fa.setFile(logFile.getAbsolutePath());
                 fa.setEncoder(ple);
                 fa.setAppend(true);

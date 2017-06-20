@@ -84,19 +84,20 @@ public class TestSPSService
     static final String SENSOR_UID_1 = "urn:mysensors:SENSOR001";
     static final String SENSOR_UID_2 = "urn:mysensors:SENSOR002";
     
-    ModuleRegistry registry;
+    protected ModuleRegistry moduleRegistry;
+    FakeSensor sensor1, sensor2;
     
     
     @Before
     public void setup() throws Exception
     {
         // get instance with in-memory DB
-        registry = SensorHub.getInstance().getModuleRegistry();
+        moduleRegistry = new SensorHub().getModuleRegistry();
         
         // start HTTP server
         HttpServerConfig httpConfig = new HttpServerConfig();
         httpConfig.httpPort = SERVER_PORT;
-        registry.loadModule(httpConfig);
+        moduleRegistry.loadModule(httpConfig);
     }
     
     
@@ -129,8 +130,8 @@ public class TestSPSService
         serviceCfg.connectors.addAll(Arrays.asList(connectorConfigs));
         
         // load module into registry
-        SPSService sps = (SPSService)registry.loadModule(serviceCfg);
-        registry.saveModulesConfiguration();
+        SPSService sps = (SPSService)moduleRegistry.loadModule(serviceCfg);
+        moduleRegistry.saveModulesConfiguration();
         return sps;
     }
     
@@ -142,19 +143,19 @@ public class TestSPSService
         sensorCfg.autoStart = true;
         sensorCfg.moduleClass = FakeSensor.class.getCanonicalName();
         sensorCfg.name = "Sensor1";
-        FakeSensor sensor = (FakeSensor)registry.loadModule(sensorCfg);
-        sensor.setSensorUID(SENSOR_UID_1);
+        sensor1 = (FakeSensor)moduleRegistry.loadModule(sensorCfg);
+        sensor1.setSensorUID(SENSOR_UID_1);
         
         // add custom interfaces
-        ((FakeSensor)sensor).setDataInterfaces(new FakeSensorData(sensor, "output1", 10, 1.0, 0));
-        ((FakeSensor)sensor).setControlInterfaces(new FakeSensorControl1(sensor));
+        sensor1.setDataInterfaces(new FakeSensorData(sensor1, "output1", 10, 1.0, 0));
+        sensor1.setControlInterfaces(new FakeSensorControl1(sensor1));
         
         // create SOS data provider config
         SensorConnectorConfig provCfg = new SensorConnectorConfig();
         provCfg.enabled = true;
         provCfg.name = NAME_OFFERING1;
         provCfg.offeringID = URI_OFFERING1;
-        provCfg.sensorID = sensor.getLocalID();
+        provCfg.sensorID = sensor1.getLocalID();
         //provCfg.hiddenOutputs
         
         return provCfg;
@@ -168,19 +169,19 @@ public class TestSPSService
         sensorCfg.autoStart = true;
         sensorCfg.moduleClass = FakeSensor.class.getCanonicalName();
         sensorCfg.name = "Sensor2";
-        FakeSensor sensor = (FakeSensor)registry.loadModule(sensorCfg);
-        sensor.setSensorUID(SENSOR_UID_2);
+        sensor2 = (FakeSensor)moduleRegistry.loadModule(sensorCfg);
+        sensor2.setSensorUID(SENSOR_UID_2);
         
         // add custom interfaces
-        ((FakeSensor)sensor).setDataInterfaces(new FakeSensorData(sensor, "output1", 10, 1.0, 0));
-        ((FakeSensor)sensor).setControlInterfaces(new FakeSensorControl1(sensor), new FakeSensorControl2(sensor));
+        sensor2.setDataInterfaces(new FakeSensorData(sensor2, "output1", 10, 1.0, 0));
+        sensor2.setControlInterfaces(new FakeSensorControl1(sensor2), new FakeSensorControl2(sensor2));
         
         // create SOS data provider config
         SensorConnectorConfig provCfg = new SensorConnectorConfig();
         provCfg.enabled = true;
         provCfg.name = NAME_OFFERING2;
         provCfg.offeringID = URI_OFFERING2;
-        provCfg.sensorID = sensor.getLocalID();
+        provCfg.sensorID = sensor2.getLocalID();
         //provCfg.hiddenOutputs
         
         return provCfg;
@@ -451,8 +452,7 @@ public class TestSPSService
         }, new URI(utils.buildURLQuery(connReq)));
         
         // wait until all commands are received
-        FakeSensor sensor = (FakeSensor)SensorHub.getInstance().getSensorManager().getLoadedModules().iterator().next();
-        FakeSensorControl1 controlInterface = (FakeSensorControl1)sensor.getCommandInputs().get("command1");
+        FakeSensorControl1 controlInterface = (FakeSensorControl1)sensor1.getCommandInputs().get("command1");
         List<DataBlock> receivedCommands = controlInterface.getReceivedCommands();
         long t0 = System.currentTimeMillis();
         while (receivedCommands.size() < numCommands)
@@ -478,10 +478,9 @@ public class TestSPSService
     {
         try
         {
-            if (registry != null)
-                registry.shutdown(false, false);            
+            if (moduleRegistry != null)
+                moduleRegistry.shutdown(false, false);            
             HttpServer.getInstance().cleanup();
-            SensorHub.clearInstance();
         }
         catch (Exception e)
         {

@@ -24,5 +24,5 @@ public abstract class SOSConsumerConfig extends OfferingConfig
     /**
      * @return an instance of data consumer corresponding to this config
      */
-    protected abstract ISOSDataConsumer getConsumer() throws SensorHubException;
+    protected abstract ISOSDataConsumer getConsumer(SOSServlet servlet) throws SensorHubException;
 }

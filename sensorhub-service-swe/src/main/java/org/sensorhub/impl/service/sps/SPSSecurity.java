@@ -15,7 +15,6 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl.service.sps;
 
 import org.sensorhub.api.security.IPermission;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleSecurity;
 import org.sensorhub.impl.security.ItemPermission;
 import org.sensorhub.impl.security.ModulePermissions;
@@ -75,14 +74,14 @@ public class SPSSecurity extends ModuleSecurity
         // register wildcard permission tree usable for all SPS services
         // do it at this point so we don't include specific offering permissions
         ModulePermissions templatePerm = rootPerm.cloneAsTemplatePermission("SPS Services");
-        SensorHub.getInstance().getSecurityManager().registerModulePermissions(templatePerm);
+        sps.getParentHub().getSecurityManager().registerModulePermissions(templatePerm);
                 
         // create permissions for each offering
         for (SPSConnectorConfig offering: sps.getConfiguration().connectors)
             addOfferingPermissions(offering.offeringID);
         
-        // register this instance permission tree
-        SensorHub.getInstance().getSecurityManager().registerModulePermissions(rootPerm);
+        // register permission tree
+        register();
     }
     
     

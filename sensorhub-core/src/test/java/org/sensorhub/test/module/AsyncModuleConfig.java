@@ -42,4 +42,10 @@ public class AsyncModuleConfig extends ModuleConfig
     boolean initEventReceived;
     boolean startEventReceived;
     boolean stopEventReceived;
+    
+    
+    AsyncModuleConfig()
+    {
+        this.moduleClass = AsyncModule.class.getCanonicalName();
+    }
 }

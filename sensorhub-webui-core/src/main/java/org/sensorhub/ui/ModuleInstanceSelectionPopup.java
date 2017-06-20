@@ -16,12 +16,13 @@ package org.sensorhub.ui;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.ui.api.UIConstants;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Table;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
@@ -32,9 +33,9 @@ public class ModuleInstanceSelectionPopup extends Window
 {
         
     @SuppressWarnings("rawtypes")
-    protected interface ModuleInstanceSelectionCallback
+    public interface ModuleInstanceSelectionCallback
     {
-        public void onSelected(IModule module);
+        public void onSelected(IModule module) throws SensorHubException;
     }
     
     
@@ -55,8 +56,8 @@ public class ModuleInstanceSelectionPopup extends Window
         table.setPageLength(10);
         table.setMultiSelect(false);
         
-        final Map<Object, IModule<?>> moduleMap = new HashMap<Object, IModule<?>>();
-        for (IModule<?> module: SensorHub.getInstance().getModuleRegistry().getLoadedModules())
+        final Map<Object, IModule<?>> moduleMap = new HashMap<>();
+        for (IModule<?> module: ((AdminUI)UI.getCurrent()).getParentHub().getModuleRegistry().getLoadedModules())
         {
             Class<?> moduleClass = module.getClass();
             if (moduleType.isAssignableFrom(moduleClass))
@@ -82,8 +83,17 @@ public class ModuleInstanceSelectionPopup extends Window
                 if (selectedItemId != null)
                 {
                     IModule<?> module = moduleMap.get(selectedItemId);
-                    if (module != null)
-                        callback.onSelected(module);
+                    
+                    try
+                    {
+                        if (module != null)
+                            callback.onSelected(module);
+                    }
+                    catch (Exception e)
+                    {
+                        DisplayUtils.showErrorPopup("Cannot select module", e);
+                        return;
+                    }
                 }
                 
                 close();

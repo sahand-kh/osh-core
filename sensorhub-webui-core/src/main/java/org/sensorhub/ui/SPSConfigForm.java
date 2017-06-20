@@ -18,7 +18,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.ISensorModule;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.service.sps.SPSConnectorConfig;
 import org.sensorhub.impl.service.sps.SPSServiceConfig;
 import org.sensorhub.impl.service.sps.SensorConnectorConfig;
@@ -70,7 +69,7 @@ public class SPSConfigForm extends GenericConfigForm
                     {
                         try
                         {
-                            ISensorModule<?> sensor = SensorHub.getInstance().getSensorManager().getModuleById(sensorID);
+                            ISensorModule<?> sensor = (ISensorModule<?>)getParentHub().getModuleRegistry().getModuleById(sensorID);
                             String uid = sensor.getUniqueIdentifier();
                             String name = sensor.getName();
                             String href = baseUrl + "?service=SPS&version=2.0&request=DescribeTasking&procedure=" + uid;
@@ -79,7 +78,7 @@ public class SPSConfigForm extends GenericConfigForm
                         }
                         catch (SensorHubException e)
                         {
-                            AdminUIModule.getInstance().getLogger().error("Cannot add SPS link", e);
+                            getLogger().error("Cannot add SPS link", e);
                         }
                     }
                 }
@@ -93,14 +92,14 @@ public class SPSConfigForm extends GenericConfigForm
     {
         if (propId.equals(PROP_CONNECTORS))
         {
-            Map<String, Class<?>> classList = new LinkedHashMap<String, Class<?>>();
+            Map<String, Class<?>> classList = new LinkedHashMap<>();
             try
             {
                 classList.put("Sensor Connector", Class.forName(SPS_PACKAGE + "SensorConnectorConfig"));               
             }
             catch (ClassNotFoundException e)
             {
-                AdminUIModule.getInstance().getLogger().error("Cannot find SPS connector class", e);
+                getLogger().error("Cannot find SPS connector class", e);
             }
             return classList;
         }

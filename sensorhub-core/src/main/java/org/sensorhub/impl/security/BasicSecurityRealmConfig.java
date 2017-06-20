@@ -26,16 +26,17 @@ import org.sensorhub.api.security.IPermissionPath;
 import org.sensorhub.api.security.IUserInfo;
 import org.sensorhub.api.security.IUserRole;
 import org.sensorhub.api.security.SecurityModuleConfig;
+import org.sensorhub.impl.module.ModuleRegistry;
 import com.google.gson.annotations.SerializedName;
 
 
 public class BasicSecurityRealmConfig extends SecurityModuleConfig
 {
     @DisplayInfo(desc="List of users allowed access to this system")
-    public List<UserConfig> users = new ArrayList<UserConfig>();
+    public List<UserConfig> users = new ArrayList<>();
     
     @DisplayInfo(desc="List of security roles")
-    public List<RoleConfig> roles = new ArrayList<RoleConfig>();
+    public List<RoleConfig> roles = new ArrayList<>();
     
     
     @IdField("userID")
@@ -48,7 +49,7 @@ public class BasicSecurityRealmConfig extends SecurityModuleConfig
         @FieldType(FieldType.Type.PASSWORD)
         public String password;
         //public String certificate;
-        public List<String> roles = new ArrayList<String>();
+        public List<String> roles = new ArrayList<>();
         
         @Override
         public String getId()
@@ -102,11 +103,11 @@ public class BasicSecurityRealmConfig extends SecurityModuleConfig
         public String roleID;
         public String name;
         public String description;
-        public List<String> allow = new ArrayList<String>();
-        public List<String> deny = new ArrayList<String>();
+        public List<String> allow = new ArrayList<>();
+        public List<String> deny = new ArrayList<>();
         
-        transient Collection<IPermissionPath> allowList = new ArrayList<IPermissionPath>();
-        transient Collection<IPermissionPath> denyList = new ArrayList<IPermissionPath>();
+        transient Collection<IPermissionPath> allowList = new ArrayList<>();
+        transient Collection<IPermissionPath> denyList = new ArrayList<>();
 
         @Override
         public String getId()
@@ -138,15 +139,15 @@ public class BasicSecurityRealmConfig extends SecurityModuleConfig
             return denyList;
         }
         
-        public void refreshPermissionLists()
+        public void refreshPermissionLists(ModuleRegistry moduleRegistry)
         {
             allowList.clear();         
             for (String path: allow)
-                allowList.add(PermissionFactory.newPermissionSetting(path));
+                allowList.add(PermissionFactory.newPermissionSetting(moduleRegistry, path));
             
             denyList.clear();         
             for (String path: deny)
-                denyList.add(PermissionFactory.newPermissionSetting(path));
+                denyList.add(PermissionFactory.newPermissionSetting(moduleRegistry, path));
         }
     }
     

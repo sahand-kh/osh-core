@@ -18,20 +18,20 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModuleProvider;
 import org.sensorhub.api.module.ModuleConfig;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.ui.api.UIConstants;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Table;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Label;
 
 
 /**
@@ -67,8 +67,8 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
     {
         super("Select Module Type");
         
-        ModuleRegistry registry = SensorHub.getInstance().getModuleRegistry();
-        Collection<IModuleProvider> providers = new ArrayList<IModuleProvider>();
+        ModuleRegistry registry = ((AdminUI)UI.getCurrent()).getParentHub().getModuleRegistry();
+        Collection<IModuleProvider> providers = new ArrayList<>();
         for (IModuleProvider provider: registry.getInstalledModuleTypes())
         {
             Class<?> configClass = provider.getModuleConfigClass();
@@ -106,7 +106,7 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
         table.setPageLength(10);
         table.setMultiSelect(false);
         
-        final Map<Object, IModuleProvider> providerMap = new HashMap<Object, IModuleProvider>();
+        final Map<Object, IModuleProvider> providerMap = new HashMap<>();
         for (IModuleProvider provider: moduleProviders)
         {
             Object id = table.addItem(new Object[] {
@@ -136,14 +136,15 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
         });
         
         // buttons bar
-        HorizontalLayout buttons = new HorizontalLayout();
+        final HorizontalLayout buttons = new HorizontalLayout();
         buttons.setSpacing(true);
         layout.addComponent(buttons);
         layout.setComponentAlignment(buttons, Alignment.MIDDLE_CENTER);
         
         // OK button
-        final ModuleRegistry registry = SensorHub.getInstance().getModuleRegistry();
+        final ModuleRegistry registry = ((AdminUI)UI.getCurrent()).getParentHub().getModuleRegistry();
         Button okButton = new Button("OK");
+        okButton.addStyleName(UIConstants.STYLE_SMALL);
         okButton.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = 1L;
 
@@ -157,6 +158,12 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
                 {
                     if (selectedItemId != null)
                     {
+                        // show spinner
+                        Label spinner = new Label();
+                        spinner.addStyleName(STYLE_SPINNER);
+                        buttons.addComponent(spinner);
+                        getUI().push();
+                        
                         // send back new config object
                         ModuleConfig config = registry.createModuleConfig(provider);
                         callback.onSelected(config); 
@@ -169,9 +176,9 @@ public class ModuleTypeSelectionPopup extends Window implements UIConstants
                     DisplayUtils.showDependencyError(provider.getClass(), e);
                     return;
                 }
-                catch (SensorHubException e)
+                catch (Exception e)
                 {
-                    DisplayUtils.showErrorPopup("Cannot add new module", e);
+                    DisplayUtils.showErrorPopup("Cannot select module", e);
                 }
             }
         });

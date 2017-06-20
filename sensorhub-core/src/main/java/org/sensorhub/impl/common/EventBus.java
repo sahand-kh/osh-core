@@ -46,7 +46,7 @@ public class EventBus
     
     public EventBus()
     {
-        eventHandlers = new HashMap<String, IEventHandler>();
+        eventHandlers = new HashMap<>();
         
         // create thread pool that will be used by all asynchronous event handlers
         threadPool = new ThreadPoolExecutor(0, 100,
@@ -118,7 +118,6 @@ public class EventBus
         // register new handleronly if non already exist for this key
         if (handler == null)
         {
-            //handler = new BasicEventHandler();
             handler = new AsyncEventHandler(threadPool);
             eventHandlers.put(key, handler);
         }

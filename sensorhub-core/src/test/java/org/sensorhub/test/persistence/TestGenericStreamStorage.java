@@ -47,7 +47,7 @@ public class TestGenericStreamStorage
     public void setup() throws Exception
     {
         // get instance with in-memory DB
-        registry = SensorHub.getInstance().getModuleRegistry();
+        registry = new SensorHub().getModuleRegistry();
         
         // create test sensor
         SensorConfigWithPos sensorCfg = new SensorConfigWithPos();
@@ -116,7 +116,6 @@ public class TestGenericStreamStorage
         try
         {
             registry.shutdown(false, false);
-            SensorHub.clearInstance();
         }
         catch (SensorHubException e)
         {

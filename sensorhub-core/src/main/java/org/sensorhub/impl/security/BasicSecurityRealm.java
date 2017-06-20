@@ -23,7 +23,6 @@ import org.sensorhub.api.security.IRoleRegistry;
 import org.sensorhub.api.security.IUserInfo;
 import org.sensorhub.api.security.IUserRegistry;
 import org.sensorhub.api.security.IUserRole;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig.RoleConfig;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig.UserConfig;
@@ -31,8 +30,8 @@ import org.sensorhub.impl.security.BasicSecurityRealmConfig.UserConfig;
 
 public class BasicSecurityRealm extends AbstractModule<BasicSecurityRealmConfig> implements IUserRegistry, IRoleRegistry, IAuthorizer
 {
-    Map<String, IUserInfo> users = new LinkedHashMap<String, IUserInfo>();
-    Map<String, IUserRole> roles = new LinkedHashMap<String, IUserRole>();
+    Map<String, IUserInfo> users = new LinkedHashMap<>();
+    Map<String, IUserRole> roles = new LinkedHashMap<>();
     IAuthorizer authz = new DefaultAuthorizerImpl(this);
     
 
@@ -70,7 +69,7 @@ public class BasicSecurityRealm extends AbstractModule<BasicSecurityRealmConfig>
         roles.clear();
         for (RoleConfig role: config.roles)
         {
-            role.refreshPermissionLists();
+            role.refreshPermissionLists(getParentHub().getModuleRegistry());
             roles.put(role.roleID, role);
         }
     }
@@ -79,8 +78,8 @@ public class BasicSecurityRealm extends AbstractModule<BasicSecurityRealmConfig>
     @Override
     public void start() throws SensorHubException
     {
-        SensorHub.getInstance().getSecurityManager().registerUserRegistry(this);
-        SensorHub.getInstance().getSecurityManager().registerAuthorizer(this);        
+        getParentHub().getSecurityManager().registerUserRegistry(this);
+        getParentHub().getSecurityManager().registerAuthorizer(this);        
     }
     
 

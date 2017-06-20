@@ -49,6 +49,10 @@ public class ModuleConfig implements Cloneable
     public String name;
     
     
+    @DisplayInfo(label="Description", desc="User description for the module")
+    public String description;
+    
+    
     @DisplayInfo(label="Auto Start", desc="Set to automatically start the module when it is loaded")
     @SerializedName(value="autoStart", alternate={"enabled"})
     public boolean autoStart = false;

@@ -36,7 +36,7 @@ public class TransactionUtils
     /*
      * Create a new SWETransactionalSensor module for handling incoming data
      */
-    public static IModule<?> createSensorModule(String sensorUID, AbstractProcess sensorDesc) throws IOException
+    public static IModule<?> createSensorModule(SensorHub hub, String sensorUID, AbstractProcess sensorDesc) throws IOException
     {
         // create virtual sensor module if needed
         try
@@ -50,7 +50,7 @@ public class TransactionUtils
             sensorConfig.id = sensorUID;
             sensorConfig.name = sensorName;
             
-            ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
+            ModuleRegistry moduleReg = hub.getModuleRegistry();
             SWETransactionalSensor sensorModule = (SWETransactionalSensor)moduleReg.loadModule(sensorConfig);
             sensorConfig.autoStart = true;
             sensorModule.requestInit(false);

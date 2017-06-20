@@ -49,10 +49,10 @@ public class AsyncEventHandler implements IEventHandler
     // helper class to use one queue per listener so they don't slow down each other
     class ListenerQueue
     {
-        Queue<Event<?>> eventQueue = new ConcurrentLinkedQueue<Event<?>>();
+        Queue<Event<?>> eventQueue = new ConcurrentLinkedQueue<>();
         volatile boolean dispatching = false;
         
-        void dispatchNextEvent(final IEventListener listener)
+        synchronized void dispatchNextEvent(final IEventListener listener)
         {
             // dispatch next event from queue
             final Event<?> e = eventQueue.poll();
@@ -88,7 +88,7 @@ public class AsyncEventHandler implements IEventHandler
                         }   
                         finally
                         {
-                            dispatchNextEvent(listener);                                
+                            dispatchNextEvent(listener);
                         }
                     }                        
                 });
@@ -102,7 +102,7 @@ public class AsyncEventHandler implements IEventHandler
             return eventQueue.offer(e);                
         }
         
-        void cancel()
+        synchronized void cancel()
         {
             eventQueue.clear();
         }
@@ -112,7 +112,7 @@ public class AsyncEventHandler implements IEventHandler
     public AsyncEventHandler(ExecutorService threadPool)
     {
         this.threadPool = threadPool;
-        this.listeners = new WeakHashMap<IEventListener, ListenerQueue>();
+        this.listeners = new WeakHashMap<>();
     }
     
     

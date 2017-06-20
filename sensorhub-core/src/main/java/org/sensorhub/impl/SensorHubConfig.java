@@ -15,7 +15,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl;
 
 import java.io.File;
-import org.sensorhub.api.config.IGlobalConfig;
+import org.sensorhub.api.ISensorHubConfig;
 
 
 /**
@@ -26,7 +26,7 @@ import org.sensorhub.api.config.IGlobalConfig;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Sep 20, 2013
  */
-public class SensorHubConfig implements IGlobalConfig
+public class SensorHubConfig implements ISensorHubConfig
 {
     private String moduleConfigPath;
     private String moduleDataPath;

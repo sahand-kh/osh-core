@@ -24,7 +24,6 @@ import java.util.Map;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.SensorException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.sensor.swe.DataStructureHash;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
@@ -46,13 +45,13 @@ public class SensorDataConsumer implements ISOSDataConsumer
 {
     SensorConsumerConfig config;
     SWETransactionalSensor sensor;
-    Map<DataStructureHash, String> structureToTemplateIdMap = new HashMap<DataStructureHash, String>();
+    Map<DataStructureHash, String> structureToTemplateIdMap = new HashMap<>();
     
     
-    public SensorDataConsumer(SensorConsumerConfig config) throws SensorHubException
+    public SensorDataConsumer(SOSServlet servlet, SensorConsumerConfig config) throws SensorHubException
     {
         this.config = config;
-        ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
+        ModuleRegistry moduleReg = servlet.getParentHub().getModuleRegistry();
         this.sensor = (SWETransactionalSensor)moduleReg.getModuleById(config.sensorID);
     }
     

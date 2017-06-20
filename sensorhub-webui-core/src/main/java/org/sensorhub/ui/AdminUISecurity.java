@@ -15,7 +15,6 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.ui;
 
 import org.sensorhub.api.security.IPermission;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleSecurity;
 import org.sensorhub.impl.security.ItemPermission;
 
@@ -56,6 +55,6 @@ public class AdminUISecurity extends ModuleSecurity
         module_update = new ItemPermission(rootPerm, "update_config", "Update Module Configuration");    
         module_restart = new ItemPermission(rootPerm, "restart", "Restart Module");            
         
-        SensorHub.getInstance().getSecurityManager().registerModulePermissions(rootPerm);
+        adminUI.getParentHub().getSecurityManager().registerModulePermissions(rootPerm);
     }
 }

@@ -16,14 +16,15 @@ package org.sensorhub.impl.processing;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.Future;
-import javax.print.DocFlavor.URL;
-import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.module.IModule;
-import org.sensorhub.api.module.ModuleConfig;
-import org.sensorhub.api.processing.IProcessModule;
+import java.util.ServiceLoader;
+import org.sensorhub.api.ISensorHub;
+import org.sensorhub.api.processing.IProcessProvider;
 import org.sensorhub.api.processing.IProcessingManager;
-import org.sensorhub.impl.module.ModuleRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.vast.process.IProcessExec;
+import org.vast.process.ProcessException;
+import org.vast.process.ProcessInfo;
 
 
 /**
@@ -36,94 +37,61 @@ import org.sensorhub.impl.module.ModuleRegistry;
  */
 public class ProcessingManagerImpl implements IProcessingManager
 {
-    protected ModuleRegistry moduleRegistry;
+    private static final Logger log = LoggerFactory.getLogger(ProcessingManagerImpl.class);
+    protected ISensorHub hub;
     
     
-    public ProcessingManagerImpl(ModuleRegistry moduleRegistry)
+    public ProcessingManagerImpl(ISensorHub hub)
     {
-        this.moduleRegistry = moduleRegistry;
+        this.hub = hub;
     }
-    
-    
+
+
     @Override
-    public Collection<IProcessModule<?>> getLoadedModules()
+    public Collection<IProcessProvider> getAllProcessingPackages()
     {
-        ArrayList<IProcessModule<?>> enabledProcesses = new ArrayList<IProcessModule<?>>();
+        ArrayList<IProcessProvider> providers = new ArrayList<>();
         
-        // retrieve all modules implementing IProcessModule
-        for (IModule<?> module: moduleRegistry.getLoadedModules())
+        ServiceLoader<IProcessProvider> sl = ServiceLoader.load(IProcessProvider.class);
+        try
         {
-            if (module instanceof IProcessModule)
-                enabledProcesses.add((IProcessModule<?>)module);
+            for (IProcessProvider provider: sl)
+                providers.add(provider);
+        }
+        catch (Exception e)
+        {
+            log.error("Invalid reference to process provider", e);
         }
         
-        return enabledProcesses;
-    }
-    
-    
-    @Override
-    public boolean isModuleLoaded(String moduleID)
-    {
-        return moduleRegistry.isModuleLoaded(moduleID);
+        return providers;
     }
 
 
     @Override
-    public Collection<ModuleConfig> getAvailableModules()
+    public IProcessExec loadProcess(String uri) throws ProcessException
     {
-        return moduleRegistry.getAvailableModules(IProcessModule.class);        
-    }
-
-
-    @Override
-    public IProcessModule<?> getModuleById(String moduleID) throws SensorHubException
-    {
-        IModule<?> module = moduleRegistry.getModuleById(moduleID);
+        for (IProcessProvider provider: getAllProcessingPackages())
+        {
+            if (provider.getProcessMap().containsKey(uri))
+            {
+                try
+                {
+                    ProcessInfo info = provider.getProcessMap().get(uri);
+                    IProcessExec processInstance = info.getImplementationClass().newInstance();
+                    
+                    // assign parent hub
+                    if (processInstance instanceof StreamDataSource)
+                        ((StreamDataSource) processInstance).setParentHub(hub);
+                        
+                    return processInstance;
+                }
+                catch (InstantiationException | IllegalAccessException e)
+                {
+                    throw new ProcessException("Cannot instantiate process " + uri, e);
+                }
+            }
+        }
         
-        if (module instanceof IProcessModule<?>)
-            return (IProcessModule<?>)module;
-        else
-            return null;
-    }
-
-
-    @Override
-    public Collection<String> getAllProcessCodePackages()
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-
-    @Override
-    public void installProcessCode(String processURI, URL codePackage, boolean replace)
-    {
-        // TODO Auto-generated method stub
-        
-    }
-
-
-    @Override
-    public void uninstallProcessCode(String processURI)
-    {
-        // TODO Auto-generated method stub
-        
-    }
-
-
-    @Override
-    public void syncExec(String processID)
-    {
-        // TODO Auto-generated method stub
-        
-    }
-
-
-    @Override
-    public Future<?> asyncExec(String processID, int priority)
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-    
+        throw new ProcessException("Unknown process " + uri);
+    }    
 }

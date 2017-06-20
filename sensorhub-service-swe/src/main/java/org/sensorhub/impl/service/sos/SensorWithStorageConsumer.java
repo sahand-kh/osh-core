@@ -20,7 +20,6 @@ import java.io.IOException;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.persistence.IBasicStorage;
 import org.sensorhub.api.sensor.SensorException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.vast.ogc.om.IObservation;
 
@@ -38,10 +37,10 @@ public class SensorWithStorageConsumer extends SensorDataConsumer implements ISO
     IBasicStorage storage;
     
     
-    public SensorWithStorageConsumer(SensorConsumerConfig config) throws SensorHubException
+    public SensorWithStorageConsumer(SOSServlet servlet, SensorConsumerConfig config) throws SensorHubException
     {
-        super(config);
-        ModuleRegistry moduleReg = SensorHub.getInstance().getModuleRegistry();
+        super(servlet, config);
+        ModuleRegistry moduleReg = servlet.getParentHub().getModuleRegistry();
         this.storage = (IBasicStorage)moduleReg.getModuleById(config.storageID);
     }
 

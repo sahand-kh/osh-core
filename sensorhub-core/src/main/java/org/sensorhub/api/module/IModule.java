@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.module;
 
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.IEventProducer;
 import org.sensorhub.api.common.SensorHubException;
@@ -39,7 +40,23 @@ public interface IModule<ConfigType extends ModuleConfig> extends IEventProducer
     
     
     /**
-     * Sets the module configuration
+     * Sets the parent hub that is used to access hub-wise functionality.<br/>
+     * This is automatically called once when the module is loaded with the
+     * ModuleRegistry associated to a sensor hub. When instantiating the module
+     * manually, it must be called before any other method.
+     * @param hub
+     */
+    public void setParentHub(ISensorHub hub);
+    
+    
+    /**
+     * @return parent hub that loaded this module
+     */
+    public ISensorHub getParentHub();
+    
+    
+    /**
+     * Sets the parent sensor hub and module configuration
      * @param config
      */
     public void setConfiguration(ConfigType config);

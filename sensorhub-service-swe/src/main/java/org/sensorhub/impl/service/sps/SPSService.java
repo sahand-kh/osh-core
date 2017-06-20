@@ -70,7 +70,7 @@ public class SPSService extends AbstractModule<SPSServiceConfig> implements ISer
     public void start() throws SensorHubException
     {
         // deploy servlet
-        servlet = new SPSServlet(config, (SPSSecurity)this.securityHandler, getLogger());
+        servlet = new SPSServlet(this, (SPSSecurity)this.securityHandler);
         deploy();
         
         setState(ModuleState.STARTED);        

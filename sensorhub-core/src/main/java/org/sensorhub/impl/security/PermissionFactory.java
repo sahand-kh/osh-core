@@ -15,13 +15,14 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl.security;
 
 import org.sensorhub.api.security.IPermission;
+import org.sensorhub.impl.module.ModuleRegistry;
 
 
 public class PermissionFactory
 {
     
     
-    public static PermissionSetting newPermissionSetting(String permString)
+    public static PermissionSetting newPermissionSetting(ModuleRegistry moduleRegistry, String permString)
     {
         PermissionSetting permSetting = new PermissionSetting();
         
@@ -32,7 +33,7 @@ public class PermissionFactory
             
             IPermission perm;
             if (i == 0 && !IPermission.WILDCARD.equals(part))
-                perm = new ModulePermissions(part);
+                perm = new ModulePermissions(moduleRegistry, part);
             else
                 perm = parsePermission(part);
             

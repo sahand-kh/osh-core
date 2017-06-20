@@ -14,14 +14,17 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl;
 
+import org.sensorhub.api.ISensorHub;
+import org.sensorhub.api.ISensorHubConfig;
 import org.sensorhub.api.comm.INetworkManager;
-import org.sensorhub.api.config.IGlobalConfig;
+import org.sensorhub.api.common.IEntityManager;
 import org.sensorhub.api.module.IModuleConfigRepository;
 import org.sensorhub.api.persistence.IPersistenceManager;
 import org.sensorhub.api.processing.IProcessingManager;
 import org.sensorhub.api.security.ISecurityManager;
 import org.sensorhub.api.sensor.ISensorManager;
 import org.sensorhub.impl.comm.NetworkManagerImpl;
+import org.sensorhub.impl.common.EntityManagerImpl;
 import org.sensorhub.impl.common.EventBus;
 import org.sensorhub.impl.module.InMemoryConfigDb;
 import org.sensorhub.impl.module.ModuleConfigJsonFile;
@@ -43,95 +46,50 @@ import org.slf4j.LoggerFactory;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Sep 4, 2013
  */
-public class SensorHub
+public class SensorHub implements ISensorHub
 {
     private static final Logger log = LoggerFactory.getLogger(SensorHub.class);    
     private static final String ERROR_MSG = "Fatal error during sensorhub execution";
-    private static SensorHub instance;
     
-    private IGlobalConfig config;
+    private ISensorHubConfig config;
     private EventBus eventBus;
-    private ModuleRegistry registry;
+    private ModuleRegistry moduleRegistry;
     private INetworkManager networkManager;
     private ISecurityManager securityManager;
+    private IEntityManager entityManager;
     private ISensorManager sensorManager;
     private IPersistenceManager persistenceManager;
     private IProcessingManager processingManager;
     private volatile boolean stopped;
     
     
-    
-    /**
-     * Creates the singleton instance with default registry and event bus implementations
-     * @param config
-     * @return the singleton instance
-     */
-    public static SensorHub createInstance(IGlobalConfig config)
+    public SensorHub()
     {
-        if (instance == null)
-        {
-            EventBus eventBus = new EventBus();
-            IModuleConfigRepository configDB = new ModuleConfigJsonFile(config.getModuleConfigPath(), true);
-            ModuleRegistry registry = new ModuleRegistry(configDB, eventBus);
-            instance = new SensorHub(config, registry, eventBus);
-        }
-        
-        return instance;
+        this.config = new SensorHubConfig();        
+        this.eventBus = new EventBus();
+        this.moduleRegistry = new ModuleRegistry(this, new InMemoryConfigDb());        
     }
     
     
-    /**
-     * Creates the singleton instance with the given config, registry and event bus
-     * @param config
-     * @param registry
-     * @param eventBus 
-     * @return the singleton instance
-     */
-    public static SensorHub createInstance(IGlobalConfig config, ModuleRegistry registry, EventBus eventBus)
-    {
-        if (instance == null)
-            instance = new SensorHub(config, registry, eventBus);
-        
-        return instance;
-    }
-    
-    
-    /**
-     * Retrieves the singleton instance or a new instance with in-memory storage
-     * if none was created yet
-     * @return singleton instance
-     */
-    public static SensorHub getInstance()
-    {
-        if (instance == null)
-        {
-            EventBus eventBus = new EventBus();
-            IModuleConfigRepository configDB = new InMemoryConfigDb();
-            ModuleRegistry registry = new ModuleRegistry(configDB, eventBus);
-            instance = new SensorHub(new SensorHubConfig(), registry, eventBus);
-        }
-        
-        return instance;
-    }
-    
-    
-    /**
-     * Clears the singleton instance
-     */
-    public static void clearInstance()
-    {
-        instance = null;
-    }
-    
-    
-    private SensorHub(IGlobalConfig config, ModuleRegistry registry, EventBus eventBus)
+    public SensorHub(ISensorHubConfig config)
     {
         this.config = config;
-        this.registry = registry;
-        this.eventBus = eventBus;
+        this.eventBus = new EventBus();
+                
+        IModuleConfigRepository configDB = new ModuleConfigJsonFile(config.getModuleConfigPath(), true);
+        this.moduleRegistry = new ModuleRegistry(this, configDB);        
     }
     
     
+    public SensorHub(ISensorHubConfig config, ModuleRegistry registry, EventBus eventBus)
+    {
+        this.config = config;
+        this.eventBus = eventBus;
+        this.moduleRegistry = registry;        
+    }
+    
+    
+    @Override
     public void start()
     {
         log.info("Starting SensorHub...");
@@ -140,29 +98,32 @@ public class SensorHub
         ClientAuth.createInstance("keystore");
                 
         // load all modules in the order implied by dependency constraints
-        registry.loadAllModules();
+        moduleRegistry.loadAllModules();
     }
     
     
+    @Override
     public void saveAndStop()
     {
         stop(true, true);
     }
     
     
+    @Override
     public void stop()
     {
         stop(false, true);
     }
     
     
+    @Override
     public synchronized void stop(boolean saveConfig, boolean saveState)
     {
         try
         {
             if (!stopped)
             {
-                registry.shutdown(saveConfig, saveState);
+                moduleRegistry.shutdown(saveConfig, saveState);
                 eventBus.shutdown();
                 stopped = true;
                 log.info("SensorHub was cleanly stopped");
@@ -175,66 +136,83 @@ public class SensorHub
     }
     
     
-    public IGlobalConfig getConfig()
+    @Override
+    public ISensorHubConfig getConfig()
     {
         return config;
     }
 
 
-    public void setConfig(IGlobalConfig config)
+    public void setConfig(ISensorHubConfig config)
     {
         this.config = config;
     }
 
 
-    public ModuleRegistry getModuleRegistry()
+    @Override
+    public synchronized ModuleRegistry getModuleRegistry()
     {
-        return registry;
+        return moduleRegistry;
     }
     
     
-    public EventBus getEventBus()
+    @Override
+    public synchronized EventBus getEventBus()
     {
         return eventBus;
     }
     
     
-    public INetworkManager getNetworkManager()
+    @Override
+    public synchronized INetworkManager getNetworkManager()
     {
         if (networkManager == null)
-            networkManager = new NetworkManagerImpl(registry);
+            networkManager = new NetworkManagerImpl(this);
         return networkManager;
     }
     
     
-    public ISecurityManager getSecurityManager()
+    @Override
+    public synchronized ISecurityManager getSecurityManager()
     {
         if (securityManager == null)
-            securityManager = new SecurityManagerImpl(registry);
+            securityManager = new SecurityManagerImpl(this);
         return securityManager;
     }
     
     
-    public ISensorManager getSensorManager()
-    {
-        if (sensorManager == null)
-            sensorManager = new SensorManagerImpl(registry);
-        return sensorManager;
-    }
-    
-    
-    public IPersistenceManager getPersistenceManager()
+    @Override
+    public synchronized IPersistenceManager getPersistenceManager()
     {
         if (persistenceManager == null)
-            persistenceManager = new PersistenceManagerImpl(registry, config.getBaseStoragePath());
+            persistenceManager = new PersistenceManagerImpl(this, config.getBaseStoragePath());
         return persistenceManager;
     }
     
     
-    public IProcessingManager getProcessingManager()
+    @Override
+    public synchronized IEntityManager getEntityManager()
+    {
+        if (entityManager == null)
+            entityManager = new EntityManagerImpl(this);
+        return entityManager;
+    }
+    
+    
+    @Override
+    public synchronized ISensorManager getSensorManager()
+    {
+        if (sensorManager == null)
+            sensorManager = new SensorManagerImpl(this);
+        return sensorManager;
+    }
+    
+    
+    @Override
+    public synchronized IProcessingManager getProcessingManager()
     {
         if (processingManager == null)
-            processingManager = new ProcessingManagerImpl(registry);
+            processingManager = new ProcessingManagerImpl(this);
         return processingManager;
     }
     
@@ -251,14 +229,14 @@ public class SensorHub
         }
         
         // start sensorhub
-        SensorHub instance = null;
+        ISensorHub instance = null;
         try
         {
             SensorHubConfig config = new SensorHubConfig(args[0], args[1]);
-            instance = SensorHub.createInstance(config);
+            instance = new SensorHub(config);
                         
             // register shutdown hook for a clean stop 
-            final SensorHub sh = instance;
+            final ISensorHub sh = instance;
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run()

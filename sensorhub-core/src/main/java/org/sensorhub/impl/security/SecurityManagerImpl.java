@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.eclipse.jetty.security.Authenticator;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.security.IAuthorizer;
 import org.sensorhub.api.security.IPermission;
 import org.sensorhub.api.security.IPermissionPath;
@@ -40,28 +41,28 @@ public class SecurityManagerImpl implements ISecurityManager
     WeakReference<Authenticator> authenticator;
     WeakReference<IUserRegistry> userDB;
     WeakReference<IAuthorizer> authorizer;
-    Map<String, IPermission> modulePermissions = new LinkedHashMap<String, IPermission>();
+    Map<String, IPermission> modulePermissions = new LinkedHashMap<>();
     
     
     
-    public SecurityManagerImpl(ModuleRegistry moduleRegistry)
+    public SecurityManagerImpl(ISensorHub hub)
     {
-        this.moduleRegistry = moduleRegistry;
+        this.moduleRegistry = hub.getModuleRegistry();
     }
     
     
     @Override
     public boolean isAccessControlEnabled()
     {        
-        return (userDB != null && userDB.get() != null &&
-                authorizer != null && authorizer.get() != null);
+        return userDB != null && userDB.get() != null &&
+               authorizer != null && authorizer.get() != null;
     }
     
     
     @Override
     public void registerAuthenticator(Authenticator authenticator)
     {
-        this.authenticator = new WeakReference<Authenticator>(authenticator);
+        this.authenticator = new WeakReference<>(authenticator);
         log.info("Authenticator provided by module " + authenticator.toString());
     }
     
@@ -69,7 +70,7 @@ public class SecurityManagerImpl implements ISecurityManager
     @Override
     public void registerUserRegistry(IUserRegistry userRegistry)
     {
-        this.userDB = new WeakReference<IUserRegistry>(userRegistry);
+        this.userDB = new WeakReference<>(userRegistry);
         log.info("User registry provided by module " + userRegistry.toString());
     }
     
@@ -77,7 +78,7 @@ public class SecurityManagerImpl implements ISecurityManager
     @Override
     public void registerAuthorizer(IAuthorizer authorizer)
     {
-        this.authorizer = new WeakReference<IAuthorizer>(authorizer);
+        this.authorizer = new WeakReference<>(authorizer);
         log.info("Authorization realm provided by module " + authorizer.toString());
     }
         

@@ -46,8 +46,8 @@ public class TestModuleRegistry
     public void setup()
     {
         System.out.println("\n*****************************");
-        registry = SensorHub.getInstance().getModuleRegistry(); 
-    }    
+        registry = new SensorHub().getModuleRegistry(); 
+    }
     
     
     private ModuleConfig createConfModule1()
@@ -422,7 +422,6 @@ public class TestModuleRegistry
         try
         {
             registry.shutdown(false, false);
-            SensorHub.clearInstance();
         }
         catch (SensorHubException e)
         {

@@ -23,16 +23,13 @@ import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.common.EventBus;
 import org.sensorhub.impl.module.AbstractModule;
-import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.utils.MsgUtils;
 
 
 public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IEventListener
 {
-    ModuleRegistry registry = SensorHub.getInstance().getModuleRegistry();
     ExecutorService exec = Executors.newSingleThreadExecutor();
     
     
@@ -50,11 +47,11 @@ public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IE
                     {
                         if (config.moduleIDNeededForInit != null)
                         {
-                            AbstractModule<?> module = (AbstractModule<?>)registry.getModuleById(config.moduleIDNeededForInit);
+                            AbstractModule<?> module = (AbstractModule<?>)getParentHub().getModuleRegistry().getModuleById(config.moduleIDNeededForInit);
                             
                             if (!config.useWaitLoopForInit)
                             {
-                                SensorHub.getInstance().getEventBus().registerListener(config.moduleIDNeededForInit, EventBus.MAIN_TOPIC, AsyncModule.this);
+                                getParentHub().getEventBus().registerListener(config.moduleIDNeededForInit, EventBus.MAIN_TOPIC, AsyncModule.this);
                                 return null;
                             }
                             else
@@ -115,11 +112,11 @@ public class AsyncModule extends AbstractModule<AsyncModuleConfig> implements IE
                     {
                         if (config.moduleIDNeededForStart != null)
                         {
-                            AbstractModule<?> module = (AbstractModule<?>)registry.getModuleById(config.moduleIDNeededForStart);
+                            AbstractModule<?> module = (AbstractModule<?>)getParentHub().getModuleRegistry().getModuleById(config.moduleIDNeededForStart);
                             
                             if (!config.useWaitLoopForStart)
                             {
-                                SensorHub.getInstance().getEventBus().registerListener(config.moduleIDNeededForStart, EventBus.MAIN_TOPIC, AsyncModule.this);
+                                getParentHub().getEventBus().registerListener(config.moduleIDNeededForStart, EventBus.MAIN_TOPIC, AsyncModule.this);
                                 return null;
                             }
                             else

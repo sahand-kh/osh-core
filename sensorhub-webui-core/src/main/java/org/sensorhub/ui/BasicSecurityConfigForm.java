@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Locale;
 import org.sensorhub.api.security.IPermission;
 import org.sensorhub.api.security.IPermissionPath;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig;
 import org.sensorhub.impl.security.BasicSecurityRealmConfig.RoleConfig;
 import org.sensorhub.impl.security.PermissionSetting;
@@ -81,7 +80,7 @@ public class BasicSecurityConfigForm extends GenericConfigForm
         {
             GenericConfigForm parentForm = (GenericConfigForm)getParentForm();
             MyBeanItem<BasicSecurityRealmConfig> beanItem = (MyBeanItem<BasicSecurityRealmConfig>)parentForm.fieldGroup.getItemDataSource();
-            List<Object> allRoles = new ArrayList<Object>();
+            List<Object> allRoles = new ArrayList<>();
             for (RoleConfig role: beanItem.getBean().roles)
                 allRoles.add(role.getId());
             return allRoles;
@@ -245,7 +244,7 @@ public class BasicSecurityConfigForm extends GenericConfigForm
             @Override
             public Action[] getActions(Object target, Object sender)
             {
-                List<Action> actions = new ArrayList<Action>(10);
+                List<Action> actions = new ArrayList<>(10);
                                 
                 if (target != null)
                 {                    
@@ -302,7 +301,7 @@ public class BasicSecurityConfigForm extends GenericConfigForm
                         roleConfig.deny.remove(permPath);
                     }
                     
-                    roleConfig.refreshPermissionLists();
+                    roleConfig.refreshPermissionLists(getParentHub().getModuleRegistry());
                     refreshPermissions(table);
                 }
             }
@@ -310,12 +309,12 @@ public class BasicSecurityConfigForm extends GenericConfigForm
         
         // detect all modules for which permissions are set
         // and add all root permissions to tree
-        HashSet<String> moduleIdStrings = new HashSet<String>();
+        HashSet<String> moduleIdStrings = new HashSet<>();
         addTopLevelPermissions(moduleIdStrings, roleConfig.allow);
         addTopLevelPermissions(moduleIdStrings, roleConfig.deny);
         for (String moduleIdString: moduleIdStrings)
         {
-            IPermission perm = SensorHub.getInstance().getSecurityManager().getModulePermissions(moduleIdString);
+            IPermission perm = getParentHub().getSecurityManager().getModulePermissions(moduleIdString);
             addPermToTree(table, perm, null);
         }
         
@@ -337,8 +336,8 @@ public class BasicSecurityConfigForm extends GenericConfigForm
             @Override
             public void buttonClick(ClickEvent event)
             {
-                // get list of top level permissions registered with securitu manager
-                Collection<IPermission> valueList = SensorHub.getInstance().getSecurityManager().getAllModulePermissions();
+                // get list of top level permissions registered with security manager
+                Collection<IPermission> valueList = getParentHub().getSecurityManager().getAllModulePermissions();
                 
                 // create callback to add new value
                 ValueCallback callback = new ValueCallback() {

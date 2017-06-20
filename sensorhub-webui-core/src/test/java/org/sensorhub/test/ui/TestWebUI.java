@@ -36,11 +36,13 @@ import org.sensorhub.ui.HttpServerConfigForm;
 
 public class TestWebUI
 {
-        
+    static ModuleRegistry registry;
+    
+    
     static public void setup() throws Exception
     {
         // start sensorhub and load modules
-        SensorHub.getInstance();
+        registry = new SensorHub().getModuleRegistry();
         setupConfig();
         
         // connect to servlet and check response
@@ -55,8 +57,6 @@ public class TestWebUI
     
     static protected void setupConfig() throws SensorHubException
     {
-        ModuleRegistry registry = SensorHub.getInstance().getModuleRegistry();
-        
         // HTTP server
         HttpServerConfig httpConfig = new HttpServerConfig();
         httpConfig.autoStart = true;

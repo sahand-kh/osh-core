@@ -44,12 +44,12 @@ public class SensorConsumerConfig extends SOSConsumerConfig
 
 
     @Override
-    protected ISOSDataConsumer getConsumer() throws SensorHubException
+    protected ISOSDataConsumer getConsumer(SOSServlet servlet) throws SensorHubException
     {
         if (storageID != null)
-            return new SensorWithStorageConsumer(this);
+            return new SensorWithStorageConsumer(servlet, this);
         else
-            return new SensorDataConsumer(this);
+            return new SensorDataConsumer(servlet, this);
     }
 
 }

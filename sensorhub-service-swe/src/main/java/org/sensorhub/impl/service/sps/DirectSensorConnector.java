@@ -22,12 +22,11 @@ import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
+import org.sensorhub.api.sensor.ISensor;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorDataInterface;
-import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.utils.MsgUtils;
 import org.vast.data.DataBlockMixed;
 import org.vast.data.SWEFactory;
@@ -53,22 +52,22 @@ import net.opengis.swe.v20.DataComponent;
  */
 public class DirectSensorConnector implements ISPSConnector, IEventListener
 {
-    final SPSServlet service;
+    final SPSServlet servlet;
     final SensorConnectorConfig config;
-    final ISensorModule<?> sensor;
+    final ISensor sensor;
     final String procedureID;
     DataChoice commandChoice;
     String uniqueInterfaceName;
     boolean disableEvents;
     
     
-    public DirectSensorConnector(SPSServlet service, SensorConnectorConfig config) throws SensorHubException
+    public DirectSensorConnector(SPSServlet servlet, SensorConnectorConfig config) throws SensorHubException
     {
-        this.service = service;
+        this.servlet = servlet;
         this.config = config;
         
         // get handle to sensor instance using sensor manager
-        this.sensor = SensorHub.getInstance().getSensorManager().getModuleById(config.sensorID);
+        this.sensor = (ISensor)servlet.getParentHub().getModuleRegistry().getModuleById(config.sensorID);
         this.procedureID = sensor.getUniqueIdentifier();
         
         // listen to sensor lifecycle events
@@ -91,7 +90,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
             if (config.offeringID != null)
                 caps.setIdentifier(config.offeringID);
             else
-                caps.setIdentifier("baseURL#" + sensor.getLocalID()); // TODO obtain baseURL
+                caps.setIdentifier(sensor.getUniqueIdentifier());
             
             // name
             if (config.name != null)
@@ -139,14 +138,14 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
         }
         catch (SensorException e)
         {
-            throw new ServiceException("Cannot generate capabilities for sensor " + MsgUtils.moduleString(sensor), e);
+            throw new ServiceException("Cannot generate capabilities for sensor " + MsgUtils.entityString(sensor), e);
         }
     }
     
     
     protected List<DataComponent> getCommandsFromSensor() throws SensorException
     {
-        List<DataComponent> commands = new ArrayList<DataComponent>();
+        List<DataComponent> commands = new ArrayList<>();
         
         // process sensor commands descriptions
         for (Entry<String, ? extends ISensorControlInterface> entry: sensor.getCommandInputs().entrySet())
@@ -164,7 +163,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
     
     protected List<String> getObservablePropertiesFromSensor() throws SensorException
     {
-        List<String> observableUris = new ArrayList<String>();
+        List<String> observableUris = new ArrayList<>();
         
         // process outputs descriptions
         for (Entry<String, ? extends ISensorDataInterface> entry: sensor.getAllOutputs().entrySet())
@@ -226,7 +225,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
         }
         catch (SensorException e)
         {
-            String msg = "Error sending command to sensor " + MsgUtils.moduleString(sensor);
+            String msg = "Error sending command to sensor " + MsgUtils.entityString(sensor);
             throw new ServiceException(msg, e);
         }
     }
@@ -244,7 +243,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
         }
         
         if (!sensor.isStarted())
-            throw new ServiceException("Sensor " + MsgUtils.moduleString(sensor) + " is disabled");
+            throw new ServiceException("Sensor " + MsgUtils.entityString(sensor) + " is disabled");
     }
 
 
@@ -265,15 +264,15 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
                     if (state == ModuleState.STARTED || state == ModuleState.STOPPING)
                     {
                         if (isEnabled())
-                            service.showConnectorCaps(this);
+                            servlet.showConnectorCaps(this);
                         else
-                            service.hideConnectorCaps(this);
+                            servlet.hideConnectorCaps(this);
                     }
                     break;
                 
                 // cleanly remove connector when sensor is deleted
                 case DELETED:
-                    service.removeConnector(procedureID);
+                    servlet.removeConnector(procedureID);
                     break;
                     
                 default:

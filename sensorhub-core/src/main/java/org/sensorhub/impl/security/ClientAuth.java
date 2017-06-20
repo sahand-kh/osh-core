@@ -35,8 +35,8 @@ public class ClientAuth extends Authenticator
 {
     static ClientAuth instance;
     
-    ThreadLocal<String> currentUser = new ThreadLocal<String>();
-    ThreadLocal<char[]> currentPasswd = new ThreadLocal<char[]>();
+    ThreadLocal<String> currentUser = new ThreadLocal<>();
+    ThreadLocal<char[]> currentPasswd = new ThreadLocal<>();
     String keyStorePath;
     KeyStore keyStore;
     char[] keyStorePasswd = null;

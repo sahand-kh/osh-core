@@ -14,6 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.test.module;
 
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
@@ -22,11 +23,11 @@ import org.sensorhub.api.module.IModuleStateManager;
 import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
-import org.sensorhub.impl.SensorHub;
 
 
 public class DummyModule implements IModule<ModuleConfig>
 {
+    ISensorHub hub;
     ModuleConfig config;
     ModuleState state = ModuleState.LOADED;
     IEventHandler eventHandler;
@@ -70,7 +71,7 @@ public class DummyModule implements IModule<ModuleConfig>
     public void setConfiguration(ModuleConfig config)
     {
         this.config = config;
-        this.eventHandler = SensorHub.getInstance().getEventBus().registerProducer(config.id);
+        this.eventHandler = hub.getEventBus().registerProducer(config.id);
     }
 
 
@@ -195,6 +196,20 @@ public class DummyModule implements IModule<ModuleConfig>
     public boolean waitForState(ModuleState state, long timeout)
     {
         return true;
+    }
+
+
+    @Override
+    public void setParentHub(ISensorHub hub)
+    {
+        this.hub = hub;        
+    }
+
+
+    @Override
+    public ISensorHub getParentHub()
+    {
+        return this.hub;
     }
 
 }

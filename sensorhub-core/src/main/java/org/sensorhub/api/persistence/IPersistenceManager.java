@@ -16,7 +16,6 @@ package org.sensorhub.api.persistence;
 
 import java.util.Collection;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.module.IModuleManager;
 
 
 /**
@@ -27,7 +26,7 @@ import org.sensorhub.api.module.IModuleManager;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 5, 2010
  */
-public interface IPersistenceManager extends IModuleManager<IStorageModule<?>>
+public interface IPersistenceManager
 {  
     
     /**

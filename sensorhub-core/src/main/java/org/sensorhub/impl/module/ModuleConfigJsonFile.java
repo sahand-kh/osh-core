@@ -69,7 +69,7 @@ public class ModuleConfigJsonFile implements IModuleConfigRepository
     /* GSON type adapter factory for parsing JSON object to a custom subclass.
      * The desired class is indicated by an additional field, whose name is
      * configured by typeFieldName. */
-    public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory
+    public static final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory
     {
         private final Class<?> baseType;
         private final String typeFieldName;

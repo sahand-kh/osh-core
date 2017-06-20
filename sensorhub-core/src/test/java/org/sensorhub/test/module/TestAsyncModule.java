@@ -18,18 +18,21 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 import org.sensorhub.api.common.Event;
 import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
+import org.sensorhub.impl.SensorHub;
 
 
 public class TestAsyncModule
 {
     
     
-    private AsyncModule loadModule(final AsyncModuleConfig conf)
+    private AsyncModule loadModule(final AsyncModuleConfig conf) throws SensorHubException
     {
-        AsyncModule module = new AsyncModule();
+        AsyncModuleConfig config = new AsyncModuleConfig();
+        AsyncModule module = (AsyncModule)new SensorHub().getModuleRegistry().loadModule(config);
         module.setConfiguration(conf);
         
         module.registerListener(new IEventListener()

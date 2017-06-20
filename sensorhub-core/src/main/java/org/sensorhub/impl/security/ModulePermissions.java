@@ -16,7 +16,7 @@ package org.sensorhub.impl.security;
 
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.security.IPermission;
-import org.sensorhub.impl.SensorHub;
+import org.sensorhub.impl.module.ModuleRegistry;
 import org.vast.util.Asserts;
 import com.rits.cloning.Cloner;
 
@@ -49,7 +49,7 @@ public class ModulePermissions extends AbstractPermission
     }
     
     
-    public ModulePermissions(String moduleIdString)
+    public ModulePermissions(ModuleRegistry reg, String moduleIdString)
     {
         this.name = moduleIdString;
         
@@ -71,7 +71,7 @@ public class ModulePermissions extends AbstractPermission
         else
         {
             // generate label 
-            IModule<?> module = SensorHub.getInstance().getModuleRegistry().getLoadedModuleById(moduleID);
+            IModule<?> module = reg.getLoadedModuleById(moduleID);
             if (module != null)
                 this.label = module.getName() + " [" + getName() + "]";
             else

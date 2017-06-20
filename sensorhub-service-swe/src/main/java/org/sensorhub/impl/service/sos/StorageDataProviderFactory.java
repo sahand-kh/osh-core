@@ -37,7 +37,6 @@ import org.sensorhub.api.persistence.IRecordStoreInfo;
 import org.sensorhub.api.persistence.IStorageModule;
 import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.utils.MsgUtils;
 import org.vast.data.DataIterator;
 import org.vast.ogc.om.IObservation;
@@ -66,23 +65,23 @@ import org.vast.util.TimeExtent;
  */
 public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEventListener
 {
-    final SOSServlet service;
+    final SOSServlet servlet;
     final StorageDataProviderConfig config;
     final IRecordStorageModule<?> storage;
     SOSOfferingCapabilities caps;
     boolean disableEvents;
     
     
-    protected StorageDataProviderFactory(SOSServlet service, StorageDataProviderConfig config) throws SensorHubException
+    protected StorageDataProviderFactory(SOSServlet servlet, StorageDataProviderConfig config) throws SensorHubException
     {
-        this.service = service;
+        this.servlet = servlet;
         this.config = config;
         IStorageModule<?> storageModule = null;
         
         try
         {
             // get handle to data storage instance
-            storageModule = SensorHub.getInstance().getPersistenceManager().getModuleById(config.storageID);
+            storageModule = (IStorageModule<?>)servlet.getParentHub().getModuleRegistry().getModuleById(config.storageID);
         }
         catch (Exception e)
         {
@@ -352,15 +351,15 @@ public class StorageDataProviderFactory implements ISOSDataProviderFactory, IEve
                     if (state == ModuleState.STARTED || state == ModuleState.STOPPING)
                     {
                         if (isEnabled())
-                            service.showProviderCaps(this);
+                            servlet.showProviderCaps(this);
                         else
-                            service.hideProviderCaps(this);
+                            servlet.hideProviderCaps(this);
                     }
                     break;
                 
                 // cleanly remove provider when storage is deleted
                 case DELETED:
-                    service.removeProvider(config.offeringID);
+                    servlet.removeProvider(config.offeringID);
                     break;
                     
                 default:

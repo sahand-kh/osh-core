@@ -120,7 +120,7 @@ public class TestSOSService
     
     
     Map<Integer, Integer> obsFoiMap = new HashMap<Integer, Integer>();
-    ModuleRegistry registry;
+    ModuleRegistry moduleRegistry;
     File dbFile;
     
     
@@ -132,12 +132,12 @@ public class TestSOSService
         dbFile.deleteOnExit();
         
         // get instance with in-memory DB
-        registry = SensorHub.getInstance().getModuleRegistry();
+        moduleRegistry = new SensorHub().getModuleRegistry();
         
         // start HTTP server
         HttpServerConfig httpConfig = new HttpServerConfig();
         httpConfig.httpPort = SERVER_PORT;
-        registry.loadModule(httpConfig, TIMEOUT);
+        moduleRegistry.loadModule(httpConfig, TIMEOUT);
     }
     
     
@@ -169,10 +169,10 @@ public class TestSOSService
         srvcMetadata.accessConstraints = "NONE";
         
         // start module
-        SOSService sos = (SOSService)registry.loadModule(serviceCfg, TIMEOUT);
+        SOSService sos = (SOSService)moduleRegistry.loadModule(serviceCfg, TIMEOUT);
         
         // save config
-        registry.saveModulesConfiguration();
+        moduleRegistry.saveModulesConfiguration();
         
         return sos;
     }
@@ -191,11 +191,11 @@ public class TestSOSService
         sensorCfg.autoStart = false;
         sensorCfg.moduleClass = FakeSensor.class.getCanonicalName();
         sensorCfg.name = "Sensor1";
-        FakeSensor sensor = (FakeSensor)SensorHub.getInstance().getModuleRegistry().loadModule(sensorCfg);
+        FakeSensor sensor = (FakeSensor)moduleRegistry.loadModule(sensorCfg);
         sensor.setSensorUID(UID_SENSOR1);
         sensor.setDataInterfaces(new FakeSensorData(sensor, NAME_OUTPUT1, 10, SAMPLING_PERIOD, NUM_GEN_SAMPLES));
         if (start)
-            SensorHub.getInstance().getModuleRegistry().startModule(sensorCfg.id, TIMEOUT);
+            moduleRegistry.startModule(sensorCfg.id, TIMEOUT);
         
         // create SOS data provider config
         SensorDataProviderConfig provCfg = new SensorDataProviderConfig();
@@ -222,13 +222,13 @@ public class TestSOSService
         sensorCfg.autoStart = false;
         sensorCfg.moduleClass = FakeSensorNetWithFoi.class.getCanonicalName();
         sensorCfg.name = "Sensor2";
-        FakeSensorNetWithFoi sensor = (FakeSensorNetWithFoi)SensorHub.getInstance().getModuleRegistry().loadModule(sensorCfg);
+        FakeSensorNetWithFoi sensor = (FakeSensorNetWithFoi)moduleRegistry.loadModule(sensorCfg);
         sensor.setSensorUID(UID_SENSOR2);
         sensor.setDataInterfaces(
                 new FakeSensorData(sensor, NAME_OUTPUT1, 1, SAMPLING_PERIOD, NUM_GEN_SAMPLES),
                 new FakeSensorData2(sensor, NAME_OUTPUT2, SAMPLING_PERIOD, NUM_GEN_SAMPLES, obsFoiMap));
         if (start)
-            SensorHub.getInstance().getModuleRegistry().startModule(sensorCfg.id, TIMEOUT);
+            moduleRegistry.startModule(sensorCfg.id, TIMEOUT);
         
         // create SOS data provider config
         SensorDataProviderConfig provCfg = new SensorDataProviderConfig();
@@ -261,7 +261,7 @@ public class TestSOSService
         streamStorageConfig.dataSourceID = sosProviderConfig.sensorID;
         
         // start storage module
-        IRecordStorageModule<?> storage = (IRecordStorageModule<?>)SensorHub.getInstance().getModuleRegistry().loadModuleAsync(streamStorageConfig, null);
+        IRecordStorageModule<?> storage = (IRecordStorageModule<?>)moduleRegistry.loadModuleAsync(streamStorageConfig, null);
         if (start)
             storage.waitForState(ModuleState.STARTED, TIMEOUT);
         else
@@ -295,7 +295,7 @@ public class TestSOSService
         streamStorageConfig.dataSourceID = sosProviderConfig.sensorID;
         
         // start storage module
-        IRecordStorageModule<?> storage = (IRecordStorageModule<?>)SensorHub.getInstance().getModuleRegistry().loadModule(streamStorageConfig, TIMEOUT);
+        IRecordStorageModule<?> storage = (IRecordStorageModule<?>)moduleRegistry.loadModule(streamStorageConfig, TIMEOUT);
                 
         // configure storage for sensor
         sosProviderConfig.storageID = storage.getLocalID();
@@ -309,7 +309,7 @@ public class TestSOSService
         final ReentrantLock lock = new ReentrantLock();
         final Condition firstRecord = lock.newCondition();
         
-        FakeSensor sensor = (FakeSensor)SensorHub.getInstance().getModuleRegistry().startModule(sosProviderConfig.sensorID, TIMEOUT);
+        FakeSensor sensor = (FakeSensor)moduleRegistry.startModule(sosProviderConfig.sensorID, TIMEOUT);
         sensor.getAllOutputs().get(NAME_OUTPUT1).registerListener(new IEventListener() {
             public void handleEvent(Event<?> event)
             { 
@@ -565,7 +565,7 @@ public class TestSOSService
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");
         
         // start sensor1
-        SensorHub.getInstance().getModuleRegistry().startModule(provider1.sensorID);
+        moduleRegistry.startModule(provider1.sensorID);
         new WaitForCondition(5000L) {
             public boolean check() { return sos.getCapabilities().getLayers().size() == 2; }
         };
@@ -618,7 +618,7 @@ public class TestSOSService
         checkOfferingTimeRange(dom, 0, currentIsoTime, "now");
         
         // start sensor1 and wait for at least one record to be in storage
-        SensorHub.getInstance().getModuleRegistry().startModule(provider1.sensorID);
+        moduleRegistry.startModule(provider1.sensorID);
         Thread.sleep(((long)(3*SAMPLING_PERIOD*1000)));
         
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
@@ -981,9 +981,10 @@ public class TestSOSService
     }
     
     
+    @SuppressWarnings("rawtypes")
     private FakeSensor getSensorModule(int index)
     {
-        Collection<ISensorModule<?>> sensors = SensorHub.getInstance().getSensorManager().getLoadedModules();
+        Collection<ISensorModule> sensors = moduleRegistry.getLoadedModules(ISensorModule.class);
         return (FakeSensor)sensors.toArray(new ISensorModule[0])[index];
     }
     
@@ -1332,10 +1333,9 @@ public class TestSOSService
     {
         try
         {
-            if (registry != null)
-                registry.shutdown(false, false);
+            if (moduleRegistry != null)
+                moduleRegistry.shutdown(false, false);
             HttpServer.getInstance().cleanup();
-            SensorHub.clearInstance();
         }
         catch (Exception e)
         {

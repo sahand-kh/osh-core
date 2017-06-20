@@ -23,6 +23,7 @@ import net.opengis.swe.v20.DataRecord;
 import net.opengis.swe.v20.Vector;
 import org.junit.Before;
 import org.junit.Test;
+import org.sensorhub.impl.SensorHub;
 import org.vast.ogc.gml.GMLUtils;
 import org.vast.sensorML.SMLUtils;
 import org.vast.swe.SWEConstants;
@@ -86,6 +87,7 @@ public class TestSensorPosition
         config.id = "TEST_SENSOR";
         config.name = "Temp Sensor";
         config.setLocation(lat, lon, alt);
+        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check feature of interest
@@ -108,6 +110,7 @@ public class TestSensorPosition
         config.id = "TEST_SENSOR";
         config.name = "Temp Sensor";
         config.setOrientation(heading, pitch, roll);
+        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check there is no feature of interest
@@ -131,6 +134,7 @@ public class TestSensorPosition
         config.name = "Video Camera";        
         config.setLocation(lat, lon, alt);
         config.setOrientation(heading, pitch, roll);
+        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check feature of interest
