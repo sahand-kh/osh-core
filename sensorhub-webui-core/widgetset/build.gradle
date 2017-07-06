@@ -50,6 +50,13 @@ war {
   rootSpec.exclude('**/*.jar')
 }
 
+// setup eclipse to fetch resources from bin folder
+eclipse {
+  classpath {
+    defaultOutputDir = file('bin')
+  }
+}
+
 jar.dependsOn war // this is to make sure the jar is built before the distributions are created
 jar.enabled false
 
