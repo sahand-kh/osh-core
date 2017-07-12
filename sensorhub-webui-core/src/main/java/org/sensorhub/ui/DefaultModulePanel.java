@@ -14,13 +14,13 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.ui;
 
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.ui.api.IModuleAdminPanel;
 import org.sensorhub.ui.api.IModuleConfigForm;
 import org.sensorhub.ui.api.UIConstants;
@@ -315,7 +315,7 @@ public class DefaultModulePanel<ModuleType extends IModule<? extends ModuleConfi
     }
     
     
-    protected SensorHub getParentHub()
+    protected ISensorHub getParentHub()
     {
         return ((AdminUI)UI.getCurrent()).getParentHub();
     }

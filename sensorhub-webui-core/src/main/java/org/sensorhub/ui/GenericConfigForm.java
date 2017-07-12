@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.comm.ICommNetwork;
 import org.sensorhub.api.comm.ICommNetwork.NetworkType;
 import org.sensorhub.api.config.DisplayInfo.FieldType.Type;
@@ -27,7 +28,6 @@ import org.sensorhub.api.config.DisplayInfo.ValueRange;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.IModuleProvider;
 import org.sensorhub.api.module.ModuleConfig;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.sensor.SensorSystemConfig.ProcessMember;
 import org.sensorhub.impl.sensor.SensorSystemConfig.SensorMember;
@@ -1243,7 +1243,7 @@ public class GenericConfigForm extends VerticalLayout implements IModuleConfigFo
     }
     
     
-    protected SensorHub getParentHub()
+    protected ISensorHub getParentHub()
     {
         return ((AdminUI)UI.getCurrent()).getParentHub();
     }

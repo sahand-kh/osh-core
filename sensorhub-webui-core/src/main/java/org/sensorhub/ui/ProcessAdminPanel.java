@@ -14,19 +14,40 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.ui;
 
-import java.util.Timer;
-import java.util.TimerTask;
-import net.opengis.gml.v32.AbstractFeature;
+import net.opengis.gml.v32.impl.ReferenceImpl;
+import net.opengis.sensorml.v20.AbstractProcess;
+import net.opengis.sensorml.v20.Link;
+import net.opengis.sensorml.v20.Settings;
+import net.opengis.sensorml.v20.SimpleProcess;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import org.sensorhub.api.data.IDataProducer;
+import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleConfig;
+import org.sensorhub.api.processing.IProcessModule;
+import org.sensorhub.api.processing.ProcessingException;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.ISensorModule;
+import org.sensorhub.impl.processing.SMLProcessConfig;
+import org.sensorhub.impl.processing.SMLProcessImpl;
+import org.sensorhub.impl.processing.StreamDataSource;
+import org.sensorhub.ui.ModuleInstanceSelectionPopup.ModuleInstanceSelectionCallback;
+import org.sensorhub.ui.ProcessFlowDiagram.Connection;
+import org.sensorhub.ui.ProcessFlowDiagram.ProcessBlock;
+import org.sensorhub.ui.ProcessFlowDiagram.ProcessFlowState;
+import org.sensorhub.ui.ProcessSelectionPopup.ProcessSelectionCallback;
 import org.sensorhub.ui.api.IModuleAdminPanel;
 import org.sensorhub.ui.data.MyBeanItem;
-import com.vaadin.server.FontAwesome;
-import com.vaadin.shared.ui.label.ContentMode;
+import org.sensorhub.utils.FileUtils;
+import org.vast.process.ProcessInfo;
+import org.vast.sensorML.AggregateProcessImpl;
+import org.vast.sensorML.SMLHelper;
+import org.vast.sensorML.SMLUtils;
+import org.vast.swe.SWEHelper;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
@@ -36,7 +57,6 @@ import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Layout;
 import com.vaadin.ui.Panel;
-import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
 
@@ -51,9 +71,11 @@ import com.vaadin.ui.VerticalLayout;
  * @since 1.0
  */
 @SuppressWarnings("serial")
-public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> implements IModuleAdminPanel<ISensorModule<?>>
+public class ProcessAdminPanel extends DefaultModulePanel<IProcessModule<?>> implements IModuleAdminPanel<IProcessModule<?>>
 {
-    Panel obsPanel, statusPanel, commandsPanel;
+    Panel outputPanel, commandsPanel, processFlowPanel;
+    ProcessFlowDiagram diagram;
+    SMLProcessConfig config;
     
     
     static class Spacing extends Label
@@ -66,11 +88,16 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
     
     
     @Override
-    public void build(final MyBeanItem<ModuleConfig> beanItem, final ISensorModule<?> module)
+    public void build(final MyBeanItem<ModuleConfig> beanItem, final IProcessModule<?> module)
     {
-        super.build(beanItem, module);       
+        super.build(beanItem, module);
         
-        // sensor info panel
+        if (module instanceof SMLProcessImpl)
+        {
+            addProcessFlowEditor((SMLProcessImpl)module);
+            this.config = (SMLProcessConfig)beanItem.getBean();
+        }
+        /*// sensor info panel
         if (module.isInitialized())
         {
             Label sectionLabel = new Label("Sensor Info");
@@ -102,7 +129,7 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
             }
             
             // outputs section
-            if (!module.getOutputs().isEmpty())
+            if (!module.getAllOutputs().isEmpty())
             {
                 // title
                 addComponent(new Spacing());
@@ -142,7 +169,7 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                                 @Override
                                 public void run()
                                 {
-                                    final UI ui = SensorAdminPanel.this.getUI();
+                                    final UI ui = ProcessAdminPanel.this.getUI();
                                     
                                     if (ui != null)
                                     {
@@ -175,7 +202,161 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                 // output panels
                 rebuildOutputsPanels(module);
             }
+        }*/
+    }
+        
+        
+    protected void addProcessFlowEditor(final SMLProcessImpl module)
+    {
+        HorizontalLayout buttonBar = new HorizontalLayout();
+        buttonBar.setSpacing(true);
+        addComponent(buttonBar);        
+        
+        // add data source button
+        Button addDatasrcBtn = new Button("Datasource", ADD_ICON);
+        addDatasrcBtn.addStyleName(STYLE_SMALL);
+        buttonBar.addComponent(addDatasrcBtn);        
+        addDatasrcBtn.addClickListener(new ClickListener() {
+            @Override
+            public void buttonClick(ClickEvent event)
+            {
+                // show popup to select among available module types
+                final ModuleInstanceSelectionCallback callback = new ModuleInstanceSelectionCallback() {
+                    @Override
+                    @SuppressWarnings("rawtypes")
+                    public void onSelected(IModule module) throws ProcessingException
+                    {
+                        diagram.addNewDataSource((IDataProducer)module);
+                    }
+                };
+                
+                // popup the list so the user can select what he wants
+                ModuleInstanceSelectionPopup popup = new ModuleInstanceSelectionPopup(IDataProducer.class, callback);
+                popup.setModal(true);
+                getUI().addWindow(popup);
+            }
+        });
+        
+        // add process button
+        Button addProcessBtn = new Button("Process", ADD_ICON);
+        addProcessBtn.addStyleName(STYLE_SMALL);
+        buttonBar.addComponent(addProcessBtn);
+        addProcessBtn.addClickListener(new ClickListener() {
+            @Override
+            public void buttonClick(ClickEvent event)
+            {
+                // show popup to select among available module types
+                final ProcessSelectionCallback callback = new ProcessSelectionCallback() {
+                    @Override
+                    public void onSelected(String name, ProcessInfo info) throws ProcessingException
+                    {
+                        diagram.addNewProcess(name, info);
+                    }
+                };
+                
+                // popup the list so the user can select what he wants
+                ProcessSelectionPopup popup = new ProcessSelectionPopup(getParentHub().getProcessingManager().getAllProcessingPackages(), callback);
+                popup.setModal(true);
+                getUI().addWindow(popup);
+            }
+        });
+        
+        // add process flow diagram
+        diagram = new ProcessFlowDiagram(module.getProcessChain());
+        addComponent(diagram);
+    }
+    
+    
+    @Override
+    protected void beforeUpdateConfig() throws ProcessingException
+    {
+        if (module instanceof SMLProcessImpl)
+            saveProcessChain();
+    }
+    
+    
+    protected void saveProcessChain() throws ProcessingException
+    {
+        AggregateProcessImpl processChain = null;
+        
+        try
+        {
+            ProcessFlowState state = diagram.getState();
+            
+            // do nothing if diagram is empty
+            // maybe we just want to read from file
+            if (state.processBlocks.isEmpty())
+                return;
+            
+            // convert diagram state to SensorML process chain
+            String uid = module.getUniqueIdentifier();
+            SMLHelper sml = SMLHelper.createAggregateProcess(uid);
+            processChain = (AggregateProcessImpl)sml.getDescription();
+            
+            // data sources            
+            for (ProcessBlock block: state.dataSources.values())
+            {
+                SimpleProcess p = sml.newSimpleProcess();
+                p.setUniqueIdentifier(block.id);
+                p.setTypeOf(new ReferenceImpl(block.uri));
+                Settings settings = sml.newSettings();
+                settings.addSetValue("parameters/"+StreamDataSource.PRODUCER_URI_PARAM, block.id);
+                p.setConfiguration(settings);
+                saveShape(block, p);
+                processChain.addComponent(block.name, p);
+            }
+            
+            // process blocks
+            for (ProcessBlock block: state.processBlocks.values())
+            {
+                SimpleProcess p = sml.newSimpleProcess();
+                p.setTypeOf(new ReferenceImpl(block.uri));
+                saveShape(block, p);
+                processChain.addComponent(block.name, p);                
+                processChain.addOutput("test", new SWEHelper().newQuantity());
+            }
+            
+            // connections
+            for (Connection c: state.connections.values())
+            {
+                Link link = sml.newLink();
+                link.setSource(c.src);
+                link.setDestination(c.dest);
+                processChain.addConnection(link);
+            }
         }
+        catch (Exception e)
+        {
+            throw new ProcessingException("Cannot create SensorML process chain", e);
+        }
+        
+        // save SensorML file
+        String smlPath = config.getSensorMLPath();
+        if (smlPath == null || !FileUtils.isSafeFilePath(smlPath))
+            throw new ProcessingException("Cannot save process chain: A valid SensorML file path must be provided");
+        
+        try (OutputStream os = new BufferedOutputStream(new FileOutputStream(smlPath)))
+        {
+            new SMLUtils(SMLUtils.V2_0).writeProcess(os, processChain, true);
+        }
+        catch (Exception e)
+        {
+            throw new ProcessingException(String.format("Cannot write SensorML description at '%s'", smlPath), e);
+        }        
+    }
+    
+    
+    protected void saveShape(ProcessBlock block, AbstractProcess p)
+    {
+    }
+    
+    
+    @Override
+    protected void refreshContent()
+    {
+        ProcessFlowDiagram oldDiagram = diagram;
+        diagram = new ProcessFlowDiagram(((SMLProcessImpl)module).getProcessChain());
+        replaceComponent(oldDiagram, diagram);
     }
     
         
@@ -188,8 +369,8 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
             // measurement outputs
             if (!module.getObservationOutputs().isEmpty())
             {
-                oldPanel = obsPanel;
-                obsPanel = newPanel("Observation Outputs");
+                oldPanel = outputPanel;
+                outputPanel = newPanel("Outputs");
                 for (ISensorDataInterface output: module.getObservationOutputs().values())
                 {
                     DataComponent dataStruct = output.getRecordDescription().copy();
@@ -199,36 +380,13 @@ public class SensorAdminPanel extends DefaultModulePanel<ISensorModule<?>> imple
                     
                     // data structure
                     Component sweForm = new SWECommonForm(dataStruct);
-                    ((Layout)obsPanel.getContent()).addComponent(sweForm);
+                    ((Layout)outputPanel.getContent()).addComponent(sweForm);
                 }  
                 
                 if (oldPanel != null)
-                    replaceComponent(oldPanel, obsPanel);
+                    replaceComponent(oldPanel, outputPanel);
                 else
-                    addComponent(obsPanel);
-            }
-            
-            // status outputs
-            if (!module.getStatusOutputs().isEmpty())
-            {
-                oldPanel = statusPanel;
-                statusPanel = newPanel("Status Outputs");
-                for (ISensorDataInterface output: module.getStatusOutputs().values())
-                {
-                    DataComponent dataStruct = output.getRecordDescription().copy();
-                    DataBlock latestRecord = output.getLatestRecord();
-                    if (latestRecord != null)
-                        dataStruct.setData(latestRecord);
-                    
-                    // data structure
-                    Component sweForm = new SWECommonForm(dataStruct);
-                    ((Layout)statusPanel.getContent()).addComponent(sweForm);
-                }           
-    
-                if (oldPanel != null)
-                    replaceComponent(oldPanel, statusPanel);
-                else
-                    addComponent(statusPanel);
+                    addComponent(outputPanel);
             }
         }
     }

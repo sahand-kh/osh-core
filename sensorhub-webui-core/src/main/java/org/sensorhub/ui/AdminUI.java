@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import javax.servlet.ServletContext;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.client.ClientConfig;
 import org.sensorhub.api.comm.NetworkConfig;
 import org.sensorhub.api.common.IEventListener;
@@ -37,7 +38,6 @@ import org.sensorhub.api.security.SecurityModuleConfig;
 import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorConfig;
 import org.sensorhub.api.service.ServiceConfig;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.common.EventBus;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.sensor.SensorSystem;
@@ -109,7 +109,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     private static final String PROP_STATE = "state";
     private static final String PROP_MODULE_OBJECT = "module";
     
-    transient SensorHub hub;
+    transient ISensorHub hub;
     transient AdminUIModule adminModule;
     transient ModuleRegistry moduleRegistry;
     transient AdminUISecurity securityHandler;
@@ -1057,7 +1057,7 @@ public class AdminUI extends com.vaadin.ui.UI implements IEventListener, UIConst
     }
     
     
-    public SensorHub getParentHub()
+    public ISensorHub getParentHub()
     {
         return hub;
     }

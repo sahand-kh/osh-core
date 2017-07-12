@@ -17,7 +17,6 @@ package org.sensorhub.ui;
 import org.vast.data.DataValue;
 import org.vast.swe.SWEDataTypeUtils;
 import net.opengis.swe.v20.DataArray;
-import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataChoice;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataRecord;
@@ -156,8 +155,7 @@ public class SWECommonForm extends VerticalLayout
                     uom = null;
             }
             
-            DataBlock data = dataComponent.getData();
-            if (showValues && data != null)
+            if (showValues && dataComponent.hasData())
             {
                 caption.append(" = ");
                 caption.append(sweUtils.getStringValue((DataValue)dataComponent));
