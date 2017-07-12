@@ -227,7 +227,6 @@ public class NativeClassLoader extends URLClassLoader
     @Override
     protected synchronized Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException
     {
-        ensureLogger();
         Class<?> c = findLoadedClass(name);
         
         if (c == null)

@@ -26,8 +26,12 @@ import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataType;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.data.FoiEvent;
+import org.sensorhub.api.data.IDataProducer;
+import org.sensorhub.api.data.IMultiSourceDataProducer;
+import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorDataEvent;
 import org.sensorhub.impl.sensor.AbstractSensorOutput;
 import org.sensorhub.test.sensor.IFakeSensorOutput;
@@ -44,7 +48,7 @@ import org.vast.swe.SWEHelper;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Sep 20, 2013
  */
-public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> implements IFakeSensorOutput
+public class FakeSensorData2 extends AbstractSensorOutput<IDataProducer> implements IFakeSensorOutput
 {
     public static final String URI_OUTPUT1 = "urn:blabla:image";
     static int ARRAY_SIZE = 12000;
@@ -57,24 +61,34 @@ public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> 
     double samplingPeriod; // seconds
     Map<Integer, Integer> obsFoiMap;
     Timer timer;
-    TimerTask sensorTask;
+    TimerTask sendTask;
     boolean started;
     boolean hasListeners;
     
     
-    public FakeSensorData2(FakeSensorNetWithFoi sensor, String name, double samplingPeriod, int maxSampleCount)
+    public FakeSensorData2(ISensorModule<?> sensor, String name, double samplingPeriod, int maxSampleCount)
     {
         this(sensor, name, samplingPeriod, maxSampleCount, null);   
     }
     
     
-    public FakeSensorData2(FakeSensorNetWithFoi sensor, String name, double samplingPeriod, int maxSampleCount, Map<Integer, Integer> obsFoiMap)
+    public FakeSensorData2(ISensorModule<?> sensor, String name, double samplingPeriod, int maxSampleCount, Map<Integer, Integer> obsFoiMap)
     {
-        super(sensor);
+        super(name, sensor);
         this.name = name;
         this.samplingPeriod = samplingPeriod;
         this.maxSampleCount = maxSampleCount;
         this.obsFoiMap = obsFoiMap;
+        init();
+    }
+    
+    
+    public FakeSensorData2(IDataProducer sensor, String name, double samplingPeriod, int maxSampleCount, Map<Integer, Integer> obsFoiMap, ISensorHub hub)
+    {
+        super(name, sensor, hub);
+        this.name = name;
+        this.samplingPeriod = samplingPeriod;
+        this.maxSampleCount = maxSampleCount;
         init();
     }
     
@@ -99,13 +113,6 @@ public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> 
         dataEnc.addMemberAsComponent(new BinaryComponentImpl("pixel/green", DataType.BYTE));
         dataEnc.addMemberAsComponent(new BinaryComponentImpl("pixel/blue", DataType.BYTE));
         this.outputEncoding = dataEnc;
-    }
-    
-    
-    @Override
-    public String getName()
-    {
-        return name;
     }
     
     
@@ -137,10 +144,50 @@ public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> 
 
 
     @Override
-    public void start()
+    public void start(boolean waitForListeners)
     {   
-        // we start sending if we have listeners
-        if (hasListeners)
+        sendTask = new TimerTask()
+        {
+            @Override
+            public void run()
+            {
+                // safety to make sure we don't output more samples than requested
+                // cancel does not seem to be taken into account early enough with high rates
+                if (sampleCount >= maxSampleCount)
+                    return;
+                
+                DataBlock data = new DataBlockByte(3*ARRAY_SIZE);
+                for (int i=0; i<ARRAY_SIZE; i++)
+                    data.setByteValue(i, (byte)(i%255));
+                           
+                sampleCount++;
+                latestRecordTime = System.currentTimeMillis();
+                latestRecord = data;
+                
+                // if testing multisource producer
+                IDataProducer producer = FakeSensorData2.this.getProducer();
+                if (obsFoiMap != null && producer instanceof IMultiSourceDataProducer)
+                {
+                    Integer foiNum = obsFoiMap.get(sampleCount);
+                    if (foiNum != null)
+                    {
+                        String entityID = FakeSensorNetWithFoi.SENSOR_UID_PREFIX + foiNum;
+                        AbstractFeature foi = ((IMultiSourceDataProducer)producer).getEntities().get(entityID).getCurrentFeatureOfInterest();
+                        eventHandler.publishEvent(new FoiEvent(latestRecordTime, getProducer(), foi, latestRecordTime/1000.));
+                        System.out.println("Observing FOI #" + foiNum);
+                    }
+                }
+                
+                eventHandler.publishEvent(new SensorDataEvent(latestRecordTime, FakeSensorData2.this, latestRecord)); 
+                System.out.println("Image record #" + sampleCount + " generated @ " + latestRecordTime/1000.);
+                
+                if (sampleCount >= maxSampleCount)
+                    cancel();
+            }                
+        };
+        
+        // start sending only if we have listeners
+        if (hasListeners || !waitForListeners)
             startSending();
         started = true;
     }
@@ -150,49 +197,20 @@ public class FakeSensorData2 extends AbstractSensorOutput<FakeSensorNetWithFoi> 
     {
         if (timer == null)
         {
-            // start data production timer
-            sensorTask = new TimerTask()
-            {
-                @Override
-                public void run()
-                {
-                    // safety to make sure we don't output more samples than requested
-                    // cancel does not seem to be taken into account early enough with high rates
-                    if (sampleCount >= maxSampleCount)
-                        return;
-                    
-                    DataBlock data = new DataBlockByte(3*ARRAY_SIZE);
-                    for (int i=0; i<ARRAY_SIZE; i++)
-                        data.setByteValue(i, (byte)(i%255));
-                               
-                    sampleCount++;
-                    latestRecordTime = System.currentTimeMillis();
-                    latestRecord = data;
-                    
-                    // if testing multisource producer
-                    if (obsFoiMap != null)
-                    {
-                        Integer foiNum = obsFoiMap.get(sampleCount);
-                        if (foiNum != null)
-                        {
-                            String entityID = FakeSensorNetWithFoi.SENSOR_UID_PREFIX + foiNum;
-                            AbstractFeature foi = FakeSensorData2.this.getProducer().getMember(entityID).getCurrentFeatureOfInterest();
-                            eventHandler.publishEvent(new FoiEvent(latestRecordTime, getProducer(), foi, latestRecordTime/1000.));
-                            System.out.println("Observing FOI #" + foiNum);
-                        }
-                    }
-                    
-                    eventHandler.publishEvent(new SensorDataEvent(latestRecordTime, FakeSensorData2.this, latestRecord)); 
-                    System.out.println("Record #" + sampleCount + " generated @ " + latestRecordTime/1000.);
-                    
-                    if (sampleCount >= maxSampleCount)
-                        cancel();
-                }                
-            };
-                
             timer = new Timer(name, true);
-            timer.scheduleAtFixedRate(sensorTask, 0, (long)(samplingPeriod * 1000));
+            timer.scheduleAtFixedRate(sendTask, 0, (long)(samplingPeriod * 1000));
         }
+    }
+    
+    
+    @Override
+    public DataBlock getLatestRecord()
+    {
+        // make sure the first record is produced
+        if (!hasListeners & sendTask != null)
+            sendTask.run();
+        
+        return latestRecord;
     }
 
 

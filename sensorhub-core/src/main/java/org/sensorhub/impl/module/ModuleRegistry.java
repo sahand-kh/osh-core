@@ -46,7 +46,7 @@ import org.sensorhub.api.module.ModuleConfig;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.module.ModuleEvent.Type;
-import org.sensorhub.impl.common.DefaultThreadFactory;
+import org.sensorhub.impl.common.EventThreadFactory;
 import org.sensorhub.utils.FileUtils;
 import org.sensorhub.utils.MsgUtils;
 import org.slf4j.Logger;
@@ -89,7 +89,7 @@ public class ModuleRegistry implements IModuleManager<IModule<?>>, IEventProduce
         this.asyncExec = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                                                 10L, TimeUnit.SECONDS,
                                                 new SynchronousQueue<Runnable>(),
-                                                new DefaultThreadFactory("ModuleRegistry"));
+                                                new EventThreadFactory("ModuleRegistry"));
     }
     
     
@@ -710,6 +710,7 @@ public class ModuleRegistry implements IModuleManager<IModule<?>>, IEventProduce
                 module.stop();
                 getStateManager(moduleID).cleanup();
                 module.cleanup();
+                unregisterModule(module);
             }
             
             log.debug("Module " + MsgUtils.moduleString(module) +  " deleted");
@@ -1138,8 +1139,32 @@ public class ModuleRegistry implements IModuleManager<IModule<?>>, IEventProduce
             log.error("Cannot load state of module " + moduleString, e);
         }
         
-        // if module is an entity, register it now
+        registerModule(module);
+    }
+    
+    
+    /*
+     * Register module with proper managers
+     */
+    protected void registerModule(IModule<?> module)
+    {
         if (module instanceof IEntity)
             hub.getEntityManager().registerEntity((IEntity)module);
+    }
+    
+    
+    /*
+     * Unregister module from managers
+     */
+    protected void unregisterModule(IModule<?> module)
+    {
+        if (module instanceof IEntity)
+            hub.getEntityManager().unregisterEntity(((IEntity)module).getUniqueIdentifier());
+    }
+    
+    
+    public ISensorHub getParentHub()
+    {
+        return hub;
     }
 }

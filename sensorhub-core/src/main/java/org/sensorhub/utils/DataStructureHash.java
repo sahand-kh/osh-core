@@ -12,7 +12,7 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.impl.sensor.swe;
+package org.sensorhub.utils;
 
 import org.vast.data.BinaryComponentImpl;
 import org.vast.data.DataIterator;
@@ -37,6 +37,12 @@ public class DataStructureHash
     private int hashcode;
 
 
+    public DataStructureHash(DataComponent comp)
+    {
+        this(comp, null);
+    }
+    
+    
     public DataStructureHash(DataComponent comp, DataEncoding enc)
     {
         hashcode = computeDataStructureHashCode(comp, enc);

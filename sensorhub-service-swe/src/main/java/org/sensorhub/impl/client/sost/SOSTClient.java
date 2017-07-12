@@ -246,7 +246,7 @@ public class SOSTClient extends AbstractModule<SOSTClientConfig> implements ICli
         
         
         // register all stream templates
-        for (IStreamingDataInterface o: dataSource.getAllOutputs().values())
+        for (IStreamingDataInterface o: dataSource.getOutputs().values())
         {
             try
             {

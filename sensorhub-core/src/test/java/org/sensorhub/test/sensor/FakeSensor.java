@@ -18,7 +18,7 @@ import net.opengis.gml.v32.Point;
 import net.opengis.gml.v32.impl.PointImpl;
 import net.opengis.sensorml.v20.PhysicalSystem;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.module.ModuleEvent.ModuleState;
+import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.api.sensor.ISensorControlInterface;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.SensorConfig;
@@ -71,9 +71,7 @@ public class FakeSensor extends AbstractSensorModule<SensorConfig>
 
     @Override
     public void start() throws SensorHubException
-    {
-        for (ISensorDataInterface o: getObservationOutputs().values())
-            ((IFakeSensorOutput)o).start();
+    {        
     }
     
     
@@ -111,10 +109,24 @@ public class FakeSensor extends AbstractSensorModule<SensorConfig>
     public void cleanup() throws SensorHubException
     {
     }
-    
-    
-    public void setStartedState()
+
+
+    public void startSendingData(boolean waitForListeners)
     {
-        setState(ModuleState.STARTED);
+        for (ISensorDataInterface o: getObservationOutputs().values())
+        {
+            o.getLatestRecord();
+            ((IFakeSensorOutput)o).start(waitForListeners);
+        }            
+    }
+    
+    
+    public boolean hasMoreData()
+    {
+        for (IStreamingDataInterface o: getOutputs().values())
+            if (o.isEnabled())
+                return true;            
+        
+        return false;
     }
 }

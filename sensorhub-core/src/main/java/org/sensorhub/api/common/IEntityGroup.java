@@ -12,21 +12,25 @@ Copyright (C) 2012-2017 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.api.sensor;
+package org.sensorhub.api.common;
+
+import java.util.Map;
 
 
 /**
  * <p>
- * This is just a semantic interface for systems that are considered actuators.
- * Actuators have the same functionality as sensors because,in addition to
- * receiving commands, they often have outputs that provide some measured
- * internal values or status information. 
+ * Interface for groups of entities (e.g. sensor networks, sensor systems).
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
- * @since Jun 11, 2017
+ * @param <EntityType> Type of entity composing this group
+ * @since Jun 9, 2017
  */
-public interface IActuator extends ISensor
+public interface IEntityGroup<EntityType extends IEntity> extends IEntity
 {
-
+    
+    /**
+     * @return map of member entities (entity ID -> IEntity object)
+     */
+    public Map<String, ? extends EntityType> getEntities();
 }

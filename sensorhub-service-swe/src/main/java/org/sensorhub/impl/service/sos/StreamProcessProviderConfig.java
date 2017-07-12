@@ -21,7 +21,7 @@ import org.sensorhub.api.config.DisplayInfo.FieldType;
 import org.sensorhub.api.config.DisplayInfo.ModuleType;
 import org.sensorhub.api.config.DisplayInfo.Required;
 import org.sensorhub.api.config.DisplayInfo.FieldType.Type;
-import org.sensorhub.api.processing.IStreamProcessModule;
+import org.sensorhub.api.processing.IProcessModule;
 
 
 /**
@@ -40,7 +40,7 @@ public class StreamProcessProviderConfig extends StreamDataProviderConfig
     @Required
     @DisplayInfo(desc="Local ID of processing module to use as data source for live-stream requests")
     @FieldType(Type.MODULE_ID)
-    @ModuleType(IStreamProcessModule.class)
+    @ModuleType(IProcessModule.class)
     public String processID;
     
     

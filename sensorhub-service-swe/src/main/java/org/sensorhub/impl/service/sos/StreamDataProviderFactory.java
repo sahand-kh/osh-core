@@ -14,11 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.impl.service.sos;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.Map.Entry;
-import java.util.Set;
 import net.opengis.gml.v32.AbstractFeature;
 import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.swe.v20.DataArray;
@@ -27,13 +23,13 @@ import net.opengis.swe.v20.DataRecord;
 import org.sensorhub.api.common.Event;
 import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.common.SensorHubException;
-import org.sensorhub.api.data.IDataProducerModule;
+import org.sensorhub.api.data.IDataProducer;
+import org.sensorhub.api.data.IMultiSourceDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.api.module.ModuleEvent;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.persistence.IFoiFilter;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.utils.MsgUtils;
 import org.vast.data.DataIterator;
 import org.vast.ogc.om.IObservation;
 import org.vast.ows.sos.SOSOfferingCapabilities;
@@ -50,14 +46,14 @@ import org.vast.util.TimeExtent;
  * @param <ProducerType> Type of producer handled by this provider
  * @since Feb 28, 2015
  */
-public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<?>> implements ISOSDataProviderFactory, IEventListener
+public class StreamDataProviderFactory<ProducerType extends IDataProducer> implements ISOSDataProviderFactory, IEventListener
 {
     final SOSServlet service;
     final StreamDataProviderConfig config;
     final String producerType;
     final ProducerType producer;
     long liveDataTimeOut;
-    long refTimeOut;
+    long startupTime;
     SOSOfferingCapabilities caps;
     boolean disableEvents;
     
@@ -69,7 +65,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
         this.producerType = producerType;
         this.producer = producer;
         this.liveDataTimeOut = (long)(config.liveDataTimeout * 1000);
-        this.refTimeOut = System.currentTimeMillis(); // initial ref for timeout is SOS startup time
+        this.startupTime = System.currentTimeMillis();
         
         // listen to producer lifecycle events
         disableEvents = true; // disable events on startup
@@ -104,41 +100,35 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
             if (config.offeringID != null)
                 caps.setIdentifier(config.offeringID);
             else
-                caps.setIdentifier("urn:offering:" + producer.getLocalID());
+                caps.setIdentifier(producer.getUniqueIdentifier());
             
             // name + description
             updateNameAndDescription();
             
-            // observable properties
-            Set<String> sensorOutputDefs = getObservablePropertiesFromProducer();
-            caps.getObservableProperties().addAll(sensorOutputDefs);
-            
             // phenomenon time
             // enable real-time requests only if streaming data source is enabled
             TimeExtent timeExtent = new TimeExtent();
-            if (producer.isStarted())
+            if (producer.isEnabled())
             {
                 timeExtent.setBeginNow(true);
                 timeExtent.setEndNow(true);
-                //timeExtent.setTimeStep(getLowestSamplingPeriodFromProducer());
             }
             caps.setPhenomenonTime(timeExtent);
         
             // use producer uniqueID as procedure ID
             caps.getProcedures().add(producer.getCurrentDescription().getUniqueIdentifier());
             
+            // obs properties & obs types
+            getObsPropertiesAndTypesFromProducer();
+            
             // FOI IDs and BBOX
             FoiUtils.updateFois(caps, producer, config.maxFois);
             
-            // obs types
-            Set<String> obsTypes = getObservationTypesFromProducer();
-            caps.getObservationTypes().addAll(obsTypes);
-            
             return caps;
         }
-        catch (SensorHubException e)
+        catch (Exception e)
         {
-            throw new ServiceException("Cannot generate capabilities for stream provider " + MsgUtils.moduleString(producer), e);
+            throw new ServiceException("Cannot generate capabilities for stream provider " + producer, e);
         }
     }
     
@@ -170,10 +160,10 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
         FoiUtils.updateFois(caps, producer, config.maxFois);
         
         // enable real-time requests if streaming data source is enabled
-        if (producer.isStarted())
+        if (producer.isEnabled())
         {
             // if latest record is not too old, enable real-time
-            if (getTimeSinceLastRecord() < liveDataTimeOut)
+            if (hasNewRecords(liveDataTimeOut))
             {
                 caps.getPhenomenonTime().setBeginNow(true);
                 caps.getPhenomenonTime().setEndNow(true);
@@ -184,97 +174,86 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     }
     
     
-    protected long getTimeSinceLastRecord()
+    protected boolean hasNewRecords(long maxAge)
+    {
+        return hasNewRecords(producer, maxAge);
+    }
+    
+    
+    protected boolean hasNewRecords(IDataProducer producer, long maxAge)
     {
         long now =  System.currentTimeMillis();
         
-        // check latest record time
-        long lastRecordTime = refTimeOut;
-        for (IStreamingDataInterface output: producer.getAllOutputs().values())
+        // check if at least one output has recent data
+        for (IStreamingDataInterface output: producer.getOutputs().values())
         {
             // skip hidden outputs
             if (config.hiddenOutputs != null && config.hiddenOutputs.contains(output.getName()))
                 continue;
             
-            long recTime = output.getLatestRecordTime();
-            if (recTime > lastRecordTime)
-                lastRecordTime = recTime;
+            long lastRecordTime = output.getLatestRecordTime();
+            if (lastRecordTime == Long.MIN_VALUE)
+                lastRecordTime = startupTime;
+            
+            if (now - lastRecordTime < liveDataTimeOut)
+                return true;
         }
         
-        return now - lastRecordTime;
-    }
-
-
-    protected Set<String> getObservablePropertiesFromProducer() throws SensorHubException
-    {
-        HashSet<String> observableUris = new LinkedHashSet<String>();
-        
-        // scan outputs descriptions
-        for (Entry<String, ? extends IStreamingDataInterface> entry: producer.getAllOutputs().entrySet())
+        // if multi-source, call recursively on child producers
+        if (producer instanceof IMultiSourceDataProducer)
         {
-            // skip hidden outputs
-            if (config.hiddenOutputs != null && config.hiddenOutputs.contains(entry.getKey()))
-                continue;
-            
-            // iterate through all SWE components and add all definition URIs as observables
-            // this way only composites with URI will get added
-            IStreamingDataInterface output = entry.getValue();
-            DataIterator it = new DataIterator(output.getRecordDescription());
-            while (it.hasNext())
+            for (IDataProducer childProducer: ((IMultiSourceDataProducer) producer).getEntities().values())
             {
-                String defUri = (String)it.next().getDefinition();
-                if (defUri != null && !defUri.equals(SWEConstants.DEF_SAMPLING_TIME))
-                    observableUris.add(defUri);
+                if (hasNewRecords(childProducer, maxAge))
+                    return true;
             }
         }
         
-        return observableUris;
+        return false;
+    }
+
+
+    protected void getObsPropertiesAndTypesFromProducer()
+    {
+        caps.getObservationTypes().add(IObservation.OBS_TYPE_GENERIC);
+        caps.getObservationTypes().add(IObservation.OBS_TYPE_SCALAR);        
+        getObsPropertiesAndTypesFromProducer(producer);
     }
     
     
-    protected Set<String> getObservationTypesFromProducer() throws SensorHubException
+    protected void getObsPropertiesAndTypesFromProducer(IDataProducer producer)
     {
-        HashSet<String> obsTypes = new HashSet<String>();
-        obsTypes.add(IObservation.OBS_TYPE_GENERIC);
-        obsTypes.add(IObservation.OBS_TYPE_SCALAR);
-        
-        // process outputs descriptions
-        for (Entry<String, ? extends IStreamingDataInterface> entry: producer.getAllOutputs().entrySet())
+        // scan outputs descriptions
+        for (IStreamingDataInterface output: producer.getOutputs().values())
         {
             // skip hidden outputs
-            if (config.hiddenOutputs != null && config.hiddenOutputs.contains(entry.getKey()))
+            if (config.hiddenOutputs != null && config.hiddenOutputs.contains(output.getName()))
                 continue;
             
-            // obs type depends on top-level component
-            IStreamingDataInterface output = entry.getValue();
+            // obs type only depends on top-level component            
             DataComponent dataStruct = output.getRecordDescription();
             if (dataStruct instanceof DataRecord)
-                obsTypes.add(IObservation.OBS_TYPE_RECORD);
+                caps.getObservationTypes().add(IObservation.OBS_TYPE_RECORD);
             else if (dataStruct instanceof DataArray)
-                obsTypes.add(IObservation.OBS_TYPE_ARRAY);
-        }
-        
-        return obsTypes;
-    }
-    
-    
-    protected double getLowestSamplingPeriodFromProducer() throws SensorHubException
-    {
-        double lowestSamplingPeriod = Double.POSITIVE_INFINITY;
-        
-        // process outputs descriptions
-        for (Entry<String, ? extends IStreamingDataInterface> entry: producer.getAllOutputs().entrySet())
-        {
-            // skip hidden outputs
-            if (config.hiddenOutputs != null && config.hiddenOutputs.contains(entry.getKey()))
-                continue;
+                caps.getObservationTypes().add(IObservation.OBS_TYPE_ARRAY);
             
-            double samplingPeriod = entry.getValue().getAverageSamplingPeriod();
-            if (samplingPeriod < lowestSamplingPeriod)
-                lowestSamplingPeriod = samplingPeriod;
+            // iterate through all SWE components and add all definition URIs as observables
+            // this way only composites with URI will get added
+            DataIterator it = new DataIterator(output.getRecordDescription());
+            while (it.hasNext())
+            {
+                String defUri = it.next().getDefinition();
+                if (defUri != null && !defUri.equals(SWEConstants.DEF_SAMPLING_TIME))
+                    caps.getObservableProperties().add(defUri);
+            }
         }
         
-        return lowestSamplingPeriod;
+        // if multisource, call recursively on child producers
+        if (producer instanceof IMultiSourceDataProducer)
+        {
+            for (IDataProducer childProducer: ((IMultiSourceDataProducer) producer).getEntities().values())
+                getObsPropertiesAndTypesFromProducer(childProducer);
+        }
     }
     
     
@@ -302,8 +281,8 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
         if (!config.enabled)
             throw new ServiceException("Offering " + config.offeringID + " is disabled");
                 
-        if (!producer.isStarted())
-            throw new ServiceException(producerType + " " + MsgUtils.moduleString(producer) + " is disabled");
+        if (!producer.isEnabled())
+            throw new ServiceException(producerType + " '" + producer.getName() + "' is disabled");
     }
 
 
@@ -359,7 +338,7 @@ public class StreamDataProviderFactory<ProducerType extends IDataProducerModule<
     @Override
     public boolean isEnabled()
     {
-        return (config.enabled && producer.isStarted());
+        return (config.enabled && producer.isEnabled());
     }
     
     

@@ -66,7 +66,7 @@ public class FileUtils
      */
     public static boolean isSafeFilePath(String path)
     {
-        if (path == null)
+        if (path == null || path.isEmpty())
             return false;
         
         Pattern regex = Pattern.compile("[" + ALLOWED_FILE_CHARS + "]*");

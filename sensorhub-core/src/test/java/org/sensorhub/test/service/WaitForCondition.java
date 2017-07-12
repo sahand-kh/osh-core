@@ -29,12 +29,16 @@ public abstract class WaitForCondition
         try
         {
             long t0 = System.currentTimeMillis();
-            while (!check() && System.currentTimeMillis() < t0+timeout)
+            while (!check())
+            {
+                if (System.currentTimeMillis() > t0+timeout)
+                    throw new IllegalStateException("Timeout reached");
                 wait(100L);
+            }                
         }
         catch (InterruptedException e)
         {
-            throw new IllegalStateException(e);
+            Thread.currentThread().interrupt();
         }
     }
     

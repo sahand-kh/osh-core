@@ -16,6 +16,7 @@ package org.sensorhub.api.sensor;
 
 import net.opengis.swe.v20.DataBlock;
 import java.util.List;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
 
 
@@ -43,14 +44,14 @@ public interface ISensorDataInterface extends IStreamingDataInterface
      * Allows by-reference access to parent sensor module
      */
     @Override
-    public ISensorModule<?> getProducer();
+    public IDataProducer getProducer();
     
     
     /**
      * Gets this output interface name.
      * <p><i>It MUST be the name reported in the map by getXXXOutputs methods
      * of {@link org.sensorhub.api.sensor.ISensorModule}</i></p>
-     * @see org.sensorhub.api.sensor.ISensorModule#getAllOutputs()
+     * @see org.sensorhub.api.sensor.ISensorModule#getOutputs()
      * @return name of this output interface
      */
     @Override

@@ -166,7 +166,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
         List<String> observableUris = new ArrayList<>();
         
         // process outputs descriptions
-        for (Entry<String, ? extends ISensorDataInterface> entry: sensor.getAllOutputs().entrySet())
+        for (Entry<String, ? extends ISensorDataInterface> entry: sensor.getOutputs().entrySet())
         {
             // iterate through all SWE components and add all definition URIs as observables
             // this way only composites with URI will get added
@@ -242,7 +242,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
             throw new ServiceException("Connector " + providerName + " is disabled");
         }
         
-        if (!sensor.isStarted())
+        if (!sensor.isEnabled())
             throw new ServiceException("Sensor " + MsgUtils.entityString(sensor) + " is disabled");
     }
 
@@ -285,7 +285,7 @@ public class DirectSensorConnector implements ISPSConnector, IEventListener
     @Override
     public boolean isEnabled()
     {
-        return (config.enabled && sensor.isStarted());
+        return (config.enabled && sensor.isEnabled());
     }
 
 

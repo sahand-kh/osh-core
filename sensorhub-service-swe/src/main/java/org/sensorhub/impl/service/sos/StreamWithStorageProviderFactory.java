@@ -83,7 +83,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
         }
         
         // enable real-time requests only if streaming data source is enabled
-        if (producer.isStarted())
+        if (producer.isEnabled())
         {
             // replace description
             if (config.description == null && storage.isStarted())
@@ -92,12 +92,8 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
             // enable live by setting end time to now
             TimeExtent timeExtent = capabilities.getPhenomenonTime();
             if (timeExtent.isNull())
-            {
                 timeExtent.setBeginNow(true);
-                timeExtent.setEndNow(true);
-            }
-            else            
-                timeExtent.setEndNow(true);     
+            timeExtent.setEndNow(true);     
         }
         
         return capabilities;
@@ -114,11 +110,10 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
             super.updateCapabilities();
         
         // enable real-time requests if streaming data source is enabled
-        if (producer.isStarted())
+        if (producer.isEnabled())
         {
             // if latest record is not too old, enable real-time
-            long delta = altProvider.getTimeSinceLastRecord();
-            if (delta < liveDataTimeOut)
+            if (altProvider.hasNewRecords(liveDataTimeOut))
                 caps.getPhenomenonTime().setEndNow(true);
             
             // if storage does support FOIs, list the current ones
@@ -186,7 +181,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
         if (!config.enabled)
             throw new ServiceException("Offering " + config.offeringID + " is disabled");
         
-        if (!storage.isStarted() && !producer.isStarted())
+        if (!storage.isStarted() && !producer.isEnabled())
             throw new ServiceException("Storage " + MsgUtils.moduleString(storage) + " is disabled");
     }
     
@@ -199,7 +194,7 @@ public class StreamWithStorageProviderFactory<ProducerType extends IDataProducer
             if (storage != null && storage.isStarted())
                 return true;
             
-            if (producer != null && producer.isStarted())
+            if (producer != null && producer.isEnabled())
                 return true;
         }
         

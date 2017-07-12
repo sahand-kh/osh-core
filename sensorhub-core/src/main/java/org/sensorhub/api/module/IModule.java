@@ -128,10 +128,10 @@ public interface IModule<ConfigType extends ModuleConfig> extends IEventProducer
     
     /**
      * Requests to initialize the module with the current configuration.<br/>
-     * Implementations of this method block until the module is initialized or
-     * return immediately while they wait for the proper init conditions.<br/>
+     * Implementations of this method should return immediately while the module waits
+     * for the proper init conditions.<br/>
      * When this method returns without error the module state is guaranteed to be
-     * {@link ModuleState#INITIALIZING}
+     * {@link ModuleState#INITIALIZING} or {@link ModuleState#INITIALIZED} 
      * @param force set to true to force a reinit, even if module was already initialized
      * @throws SensorHubException if module could not enter initialization phase
      */
@@ -140,6 +140,7 @@ public interface IModule<ConfigType extends ModuleConfig> extends IEventProducer
     
     /**
      * Initializes the module synchronously with the current configuration.<br/>
+     * Configuration must be set prior to calling this method.<br/>
      * Implementations of this method must block until the module is
      * successfully initialized or send an exception.<br/>
      * Module lifecycle events may not be generated when calling this method directly.<br/>
@@ -174,10 +175,10 @@ public interface IModule<ConfigType extends ModuleConfig> extends IEventProducer
     
     /**
      * Requests the module to start.<br/>
-     * Implementations of this method may block until the module is started or
-     * return immediately while they wait for the proper start conditions.<br/>
+     * Implementations of this method should return immediately while the module waits
+     * for the proper start conditions.<br/>
      * When this method returns without error the module state is guaranteed to be
-     * {@link ModuleState#STARTING}
+     * {@link ModuleState#STARTING} or {@link ModuleState#STARTED}
      * @throws SensorHubException if startup could not be initiated
      */
     public void requestStart() throws SensorHubException;
@@ -196,10 +197,10 @@ public interface IModule<ConfigType extends ModuleConfig> extends IEventProducer
     
     /**
      * Requests the module to stop.<br/>
-     * Implementations of this method may block until the module is stopped or
-     * return immediately while they wait for the proper stop conditions.<br/>
+     * Implementations of this method should return immediately while the module waits
+     * for the proper stop conditions.<br/>
      * When this method returns without error the module state is guaranteed to be
-     * {@link ModuleState#STOPPING}
+     * {@link ModuleState#STOPPING} or {@link ModuleState#STOPPED}
      * @throws SensorHubException if shutdown could not be initiated
      */
     public void requestStop() throws SensorHubException;

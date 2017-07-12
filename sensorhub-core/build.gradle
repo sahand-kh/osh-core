@@ -8,7 +8,6 @@ dependencies {
   compile 'org.apache.felix:org.apache.felix.framework:4.2.1'
   compile 'com.google.code.gson:gson:2.7'
   compile 'ch.qos.logback:logback-classic:1.1.2'
-  compile 'uk.com.robust-it:cloning:1.9.1'
   compile 'org.eclipse.jetty:jetty-servlet:9.2.7.v20150116'
   compile 'org.eclipse.jetty:jetty-servlets:9.2.7.v20150116'
     

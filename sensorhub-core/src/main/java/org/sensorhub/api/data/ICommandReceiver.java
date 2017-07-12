@@ -15,6 +15,7 @@ Copyright (C) 2012-2017 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.api.data;
 
 import java.util.Map;
+import org.sensorhub.api.common.IEntity;
 
 
 /**
@@ -25,8 +26,15 @@ import java.util.Map;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Mar 23, 2017
  */
-public interface ICommandReceiver extends IModuleWithDescription
+public interface ICommandReceiver extends IEntity
 {
+    
+    /**
+     * @return true if ready to accept commands, false otherwise
+     */
+    public boolean isEnabled();
+    
+    
     /**
      * Retrieves the list of data inputs
      * @return map of output names -> data interface objects

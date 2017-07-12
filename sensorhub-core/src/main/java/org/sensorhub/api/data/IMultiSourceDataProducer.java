@@ -15,7 +15,8 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.api.data;
 
 import java.util.Collection;
-import java.util.Set;
+import java.util.Map;
+import org.sensorhub.api.common.IEntityGroup;
 import net.opengis.gml.v32.AbstractFeature;
 
 
@@ -32,41 +33,22 @@ import net.opengis.gml.v32.AbstractFeature;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since May 31, 2015
  */
-public interface IMultiSourceDataProducer
+public interface IMultiSourceDataProducer extends IDataProducer, IEntityGroup<IDataProducer>
 {
-
-    /**
-     * @return List of entity IDs for which this module produces data
-     */
-    public Set<String> getEntityIDs();
-    
-    
-    /**
-     * Retrieves the producer interface of the given entity ID
-     * @param entityID
-     * @return
-     */
-    public IDataProducer getProducer(String entityID);
-    
         
     /**
-     * @return List of all features of interest for which this producer
-     * is generating data.
+     * Retrieves the list of features of interest for which this producer
+     * is generating data
+     * @return read-only map of all FOI ids -> feature objects
      */
-    public Collection<? extends AbstractFeature> getFeaturesOfInterest();
-    
-    
-    /**
-     * @return Collection of IDs of all features of interest for which this
-     * producer is generating data.
-     */
-    public Collection<String> getFeaturesOfInterestIDs();
+    public Map<String, ? extends AbstractFeature> getFeaturesOfInterest();
     
     
     /**
      * Gets IDs of entities that are observing the specified feature of interest. 
-     * @param foiIDs ID of feature of interest
+     * @param foiID ID of feature of interest
      * @return collection of entity IDs (can be empty)
      */
     public Collection<String> getEntitiesWithFoi(String foiID);
+    
 }

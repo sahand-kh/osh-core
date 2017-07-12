@@ -17,6 +17,7 @@ package org.sensorhub.impl.sensor;
 import java.util.ArrayList;
 import java.util.Collection;
 import org.sensorhub.api.ISensorHub;
+import org.sensorhub.api.common.IEntityFilter;
 import org.sensorhub.api.common.IEntityManager;
 import org.sensorhub.api.sensor.ISensor;
 import org.sensorhub.api.sensor.ISensorManager;
@@ -47,13 +48,21 @@ public class SensorManagerImpl implements ISensorManager
         ArrayList<ISensor> connectedSensors = new ArrayList<>();
         
         // delegate to entity manager and filter on connected status
-        for (ISensor sensor: entityManager.getEntities(ISensor.class, null))
+        for (ISensor sensor: entityManager.getEntities(ISensor.class))
         {
             if (sensor.isConnected())
                 connectedSensors.add(sensor);
         }
         
         return connectedSensors;
+    }
+
+
+    @Override
+    public Collection<ISensor> findSensors(IEntityFilter filter)
+    {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

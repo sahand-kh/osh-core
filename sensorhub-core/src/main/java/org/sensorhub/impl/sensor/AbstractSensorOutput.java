@@ -16,12 +16,13 @@ package org.sensorhub.impl.sensor;
 
 import java.util.List;
 import net.opengis.swe.v20.DataBlock;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.sensor.SensorException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.utils.MsgUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +35,13 @@ import org.slf4j.LoggerFactory;
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
- * @param <SensorType> Type of parent sensor
+ * @param <ProducerType> Type of parent sensor
  * @since Nov 2, 2014
  */
-public abstract class AbstractSensorOutput<SensorType extends ISensorModule<?>> implements ISensorDataInterface
+public abstract class AbstractSensorOutput<ProducerType extends IDataProducer> implements ISensorDataInterface
 {
-    protected static String ERROR_NO_STORAGE = "Data storage is not supported by driver ";
-    protected SensorType parentSensor;
+    protected static final String ERROR_NO_STORAGE = "Data storage is not supported by driver ";
+    protected ProducerType parentSensor;
     protected Logger log;
     protected String name;
     protected IEventHandler eventHandler;
@@ -48,13 +49,19 @@ public abstract class AbstractSensorOutput<SensorType extends ISensorModule<?>> 
     protected long latestRecordTime = Long.MIN_VALUE;
     
     
-    public AbstractSensorOutput(SensorType parentSensor)
+    public AbstractSensorOutput(ISensorModule<?> parentSensor)
     {
         this(null, parentSensor);
     }
     
     
-    public AbstractSensorOutput(String name, SensorType parentSensor)
+    public AbstractSensorOutput(String name, ISensorModule<?> parentSensor)
+    {
+        this(name, (ProducerType)parentSensor, parentSensor.getParentHub());
+    }
+    
+    
+    public AbstractSensorOutput(String name, ProducerType parentSensor, ISensorHub hub)
     {
         this.name = name;
         this.parentSensor = parentSensor;
@@ -63,12 +70,11 @@ public abstract class AbstractSensorOutput<SensorType extends ISensorModule<?>> 
         if (parentSensor instanceof AbstractSensorModule)
             this.log = ((AbstractSensorModule<?>)parentSensor).getLogger();
         else
-            this.log = LoggerFactory.getLogger(getClass().getCanonicalName());
-        
+            this.log = LoggerFactory.getLogger(getClass().getCanonicalName());        
+
         // obtain an event handler for this output
-        String moduleID = parentSensor.getLocalID();
-        String topic = getName();
-        this.eventHandler = SensorHub.getInstance().getEventBus().registerProducer(moduleID, topic);
+        String moduleID = parentSensor.getUniqueIdentifier();
+        eventHandler = hub.getEventBus().registerProducer(moduleID, getName()); 
     }
     
     
@@ -79,7 +85,7 @@ public abstract class AbstractSensorOutput<SensorType extends ISensorModule<?>> 
     
     
     @Override
-    public SensorType getParentModule()
+    public ProducerType getProducer()
     {
         return parentSensor;
     }
@@ -130,28 +136,28 @@ public abstract class AbstractSensorOutput<SensorType extends ISensorModule<?>> 
     @Override
     public int getNumberOfAvailableRecords() throws SensorException
     {
-        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.moduleClassAndId(parentSensor));
+        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.entityString(parentSensor));
     }
 
 
     @Override
     public List<DataBlock> getLatestRecords(int maxRecords, boolean clear) throws SensorException
     {
-        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.moduleClassAndId(parentSensor));
+        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.entityString(parentSensor));
     }
 
 
     @Override
     public List<DataBlock> getAllRecords(boolean clear) throws SensorException
     {
-        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.moduleClassAndId(parentSensor));
+        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.entityString(parentSensor));
     }
 
 
     @Override
     public int clearAllRecords() throws SensorException
     {
-        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.moduleClassAndId(parentSensor));
+        throw new SensorException(ERROR_NO_STORAGE + MsgUtils.entityString(parentSensor));
     }
     
     

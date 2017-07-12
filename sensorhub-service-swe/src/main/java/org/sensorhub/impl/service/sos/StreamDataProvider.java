@@ -35,6 +35,7 @@ import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IMultiSourceDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.api.module.IModule;
+import org.sensorhub.utils.DataStructureHash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vast.data.DataIterator;
@@ -68,10 +69,11 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
     final long timeOut;
     final long stopTime;
     final boolean latestRecordOnly;
-    
+        
     boolean isMultiSource = false;
     DataComponent resultStructure;
-    DataEncoding resultEncoding;   
+    DataEncoding resultEncoding;  
+    DataStructureHash resultStructureHash;
     long lastQueueErrorTime = Long.MIN_VALUE;
     DataEvent lastDataEvent;
     int nextEventRecordIndex = 0;
@@ -90,8 +92,7 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
             if (!currentFoiMap.isEmpty())
                 numProducers = currentFoiMap.size();
             else
-                numProducers = ((IMultiSourceDataProducer)dataSource).getEntityIDs().size();
-            isMultiSource = true;
+                numProducers = ((IMultiSourceDataProducer)dataSource).getEntities().size();
         }
         
         // create queue with proper size
@@ -155,7 +156,7 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
     
     protected String findOutput(IDataProducer producer, List<String> hiddenOutputs, Set<String> defUris)
     {
-        for (IStreamingDataInterface output : producer.getAllOutputs().values())
+        for (IStreamingDataInterface output : producer.getOutputs().values())
         {
             // skip hidden outputs
             if (hiddenOutputs != null && hiddenOutputs.contains(output.getName()))
@@ -165,21 +166,14 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
             DataIterator it = new DataIterator(output.getRecordDescription());
             while (it.hasNext())
             {
-                String defUri = (String) it.next().getDefinition();
+                String defUri = it.next().getDefinition();
                 if (defUris.contains(defUri))
                 {                    
-                    // return the first found since we only support requesting data from one output at a time
+                    // use the first output found since we only support requesting data from one output at a time
                     // TODO support case of multiple outputs since it is technically possible with GetObservation
                     
-                    // insert FOI id in structure if needed
                     resultStructure = output.getRecordDescription();
-                    if (isMultiSource)
-                    {
-                        IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)dataSource;
-                        DataComponent foiIDComp = FoiUtils.buildFoiIDComponent(multiSource);
-                        FoiUtils.addFoiID(resultStructure, foiIDComp);
-                    }
-                    
+                    resultStructureHash = new DataStructureHash(resultStructure);
                     resultEncoding = output.getRecommendedEncoding();
                     return output.getName();
                 }
@@ -189,11 +183,11 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
         // if multi producer, try to find output in any of the nested producers
         if (producer instanceof IMultiSourceDataProducer)
         {
-            IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)producer;            
-            for (String entityID: multiSource.getEntityIDs())
+            IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)producer;
+            for (IDataProducer member: multiSource.getEntities().values())
             {
-                IDataProducer nestedProducer = multiSource.getProducer(entityID);
-                String outputName = findOutput(nestedProducer, hiddenOutputs, defUris);
+                // return the first one we find
+                String outputName = findOutput(member, hiddenOutputs, defUris);
                 if (outputName != null)
                     return outputName;
             }
@@ -209,16 +203,21 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
         if (producer instanceof IMultiSourceDataProducer)
         {
             IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)producer;            
-            for (String entityID: multiSource.getEntityIDs())
-                connectDataSource(multiSource.getProducer(entityID));
+            for (IDataProducer member: multiSource.getEntities().values())
+                connectDataSource(member);
         }
         
         // get selected output
-        IStreamingDataInterface output = producer.getAllOutputs().get(selectedOutput);
+        IStreamingDataInterface output = producer.getOutputs().get(selectedOutput);
         if (output == null)
             return;
         
-        // always send latest record if available;                    
+        // only use output if structure is compatible with selected output
+        // needed in case there is an output with the same name but different structure
+        if (!resultStructureHash.equals(new DataStructureHash(output.getRecordDescription())))
+            return;
+        
+        // always send latest record if available                 
         DataBlock data = output.getLatestRecord();
         if (data != null)
             eventQueue.offer(new DataEvent(System.currentTimeMillis(), output, data));
@@ -232,16 +231,16 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
     protected void disconnectDataSource(IDataProducer producer)
     {
         // get selected output
-        IStreamingDataInterface output = producer.getAllOutputs().get(selectedOutput);
+        IStreamingDataInterface output = producer.getOutputs().get(selectedOutput);
         if (output != null)
-            output.unregisterListener(this);;
+            output.unregisterListener(this);
         
         // if multisource, call recursively to disconnect nested producers
         if (producer instanceof IMultiSourceDataProducer)
         {
             IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)producer;            
-            for (String entityID: multiSource.getEntityIDs())
-                disconnectDataSource(multiSource.getProducer(entityID));
+            for (IDataProducer member: multiSource.getEntities().values())
+                disconnectDataSource(member);
         }
     }
 
@@ -295,7 +294,7 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
         if (dataSource instanceof IMultiSourceDataProducer)
         {
             String entityID = lastDataEvent.getRelatedEntityID();
-            IDataProducer producer = ((IMultiSourceDataProducer)dataSource).getProducer(entityID);
+            IDataProducer producer = ((IMultiSourceDataProducer)dataSource).getEntities().get(entityID);
             Asserts.checkNotNull(producer, IDataProducer.class);
             foi = producer.getCurrentFeatureOfInterest();
         }
@@ -355,11 +354,6 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
 
             //System.out.println("->" + new DateTimeFormat().formatIso(lastDataEvent.getTimeStamp()/1000., 0));
             DataBlock dataBlk = lastDataEvent.getRecords()[nextEventRecordIndex++];
-                        
-            // add FOI ID to datablock if needed
-            if (isMultiSource)
-                dataBlk = FoiUtils.addFoiID(dataBlk);
-                        
             return dataBlk;
 
             // TODO add choice token value if request includes several outputs
@@ -386,17 +380,17 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
     
     private boolean hasMoreData(IDataProducer producer)
     {
-        IStreamingDataInterface output = dataSource.getAllOutputs().get(selectedOutput);
+        IStreamingDataInterface output = producer.getOutputs().get(selectedOutput);
         if (output != null && output.isEnabled())
             return true;
         
         // if multi producer, also check if outputs of nested producers have more data
-        if (dataSource instanceof IMultiSourceDataProducer)
+        if (producer instanceof IMultiSourceDataProducer)
         {
-            IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)dataSource;            
-            for (String entityID: multiSource.getEntityIDs())
+            IMultiSourceDataProducer multiSource = (IMultiSourceDataProducer)producer;            
+            for (IDataProducer member: multiSource.getEntities().values())
             {
-                if (hasMoreData(multiSource.getProducer(entityID)))
+                if (hasMoreData(member))
                     return true;
             }
         }
@@ -458,6 +452,62 @@ public abstract class StreamDataProvider implements ISOSDataProvider, IEventList
             String producerID = ((FoiEvent) e).getRelatedEntityID();
             currentFoiMap.put(producerID, foiEvent.getFoiID());
         }
+    }
+    
+    
+    @Override
+    public boolean hasMultipleProducers()
+    {
+        return dataSource instanceof IMultiSourceDataProducer;
+    }
+
+
+    @Override
+    public String getProducerIDPrefix()
+    {
+        if (dataSource instanceof IMultiSourceDataProducer)
+        {
+            IMultiSourceDataProducer multiProducer = (IMultiSourceDataProducer)dataSource;
+            StringBuilder prefix = new StringBuilder();
+            boolean first = true;
+            
+            // try to detect common prefix            
+            for (String uid: multiProducer.getEntities().keySet())
+            {
+                if (first)
+                {
+                    prefix = new StringBuilder(uid);
+                    first = false;                    
+                }
+                else
+                {
+                    // prefix cannot be longer than ID
+                    if (prefix.length() > uid.length())
+                        prefix.setLength(uid.length());
+                    
+                    // keep only common chars
+                    for (int i = 0; i < prefix.length(); i++)
+                    {
+                        if (uid.charAt(i) != prefix.charAt(i))
+                        {
+                            prefix.setLength(i);
+                            break;
+                        }
+                    }
+                }                    
+            }
+            
+            return prefix.toString();
+        }
+        
+        return null;
+    }
+
+
+    @Override
+    public String getNextProducerID()
+    {
+        return lastDataEvent.getRelatedEntityID();
     }
 
 

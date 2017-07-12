@@ -29,7 +29,28 @@ package org.sensorhub.api.common;
  */
 public abstract class EntityEvent<EventTypeEnum extends Enum<?>> extends Event<EventTypeEnum>
 {
-
+    /**
+     * Possible event types for a EntityEvent
+     */
+    public static enum Type
+    {
+        /**
+         * Entity added to hub or parent group
+         */
+        ENTITY_ADDED,
+        
+        /**
+         * Entity removed from hub or parent group
+         */
+        ENTITY_REMOVED,
+        
+        /**
+         * Entity configuration changed (should be reflected by SensorML)
+         */
+        ENTITY_CHANGED
+    };
+    
+    
     /**
      * @see #getRelatedEntityID()
      */

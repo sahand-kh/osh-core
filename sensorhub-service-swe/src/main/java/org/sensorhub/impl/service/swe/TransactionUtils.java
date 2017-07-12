@@ -15,10 +15,10 @@ Copyright (C) 2012-2016 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.impl.service.swe;
 
 import java.io.IOException;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.sensor.ISensorModule;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensorConfig;
@@ -36,7 +36,7 @@ public class TransactionUtils
     /*
      * Create a new SWETransactionalSensor module for handling incoming data
      */
-    public static IModule<?> createSensorModule(SensorHub hub, String sensorUID, AbstractProcess sensorDesc) throws IOException
+    public static IModule<?> createSensorModule(ISensorHub hub, String sensorUID, AbstractProcess sensorDesc) throws IOException
     {
         // create virtual sensor module if needed
         try

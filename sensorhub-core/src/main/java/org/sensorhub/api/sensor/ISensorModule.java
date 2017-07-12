@@ -14,8 +14,7 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.sensor;
 
-import org.sensorhub.api.data.IDataProducerModule;
-
+import org.sensorhub.api.module.IModule;
 
 /**
  * <p>
@@ -28,7 +27,7 @@ import org.sensorhub.api.data.IDataProducerModule;
  * @param <ConfigType> 
  * @since Nov 5, 2010
  */
-public interface ISensorModule<ConfigType extends SensorConfig> extends IDataProducerModule<ConfigType>, ISensor
+public interface ISensorModule<ConfigType extends SensorConfig> extends IModule<ConfigType>, ISensor
 {
     
 }

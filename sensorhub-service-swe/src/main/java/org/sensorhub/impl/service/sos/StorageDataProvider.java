@@ -25,6 +25,7 @@ import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
 import org.sensorhub.api.persistence.IBasicStorage;
 import org.sensorhub.api.persistence.IDataRecord;
+import org.sensorhub.api.persistence.IMultiSourceStorage;
 import org.sensorhub.api.persistence.IObsFilter;
 import org.sensorhub.api.persistence.IRecordStoreInfo;
 import org.sensorhub.api.persistence.ObsFilter;
@@ -58,6 +59,7 @@ public class StorageDataProvider implements ISOSDataProvider
     IObsFilter storageFilter;
     List<StorageState> dataStoresStates;
     String foiID;
+    String nextProducerID;
     
     // replay stuff 
     double replaySpeedFactor;
@@ -238,6 +240,7 @@ public class StorageDataProvider implements ISOSDataProvider
         StorageState state = dataStoresStates.get(nextStorageIndex);
         IDataRecord nextRec = state.nextRecord;
         DataBlock datablk = nextRec.getData();
+        nextProducerID = nextRec.getKey().producerID;
         
         // also save FOI ID if set
         if (nextRec.getKey() instanceof ObsKey)
@@ -283,9 +286,65 @@ public class StorageDataProvider implements ISOSDataProvider
 
 
     @Override
+    public boolean hasMultipleProducers()
+    {
+        return storage instanceof IMultiSourceStorage;
+    }
+
+
+    @Override
+    public String getProducerIDPrefix()
+    {
+        if (storage instanceof IMultiSourceStorage)
+        {
+            IMultiSourceStorage<?> multiStorage = (IMultiSourceStorage<?>)storage;
+            StringBuilder prefix = new StringBuilder();
+            boolean first = true;
+            
+            // try to detect common prefix
+            for (String uid: multiStorage.getProducerIDs())
+            {
+                if (first)
+                {
+                    prefix = new StringBuilder(uid);
+                    first = false;                    
+                }
+                else
+                {
+                    // prefix cannot be longer than ID
+                    if (prefix.length() > uid.length())
+                        prefix.setLength(uid.length());
+                    
+                    // keep only common chars
+                    for (int i = 0; i < prefix.length(); i++)
+                    {
+                        if (uid.charAt(i) != prefix.charAt(i))
+                        {
+                            prefix.setLength(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return prefix.toString();
+        }
+        
+        return null;
+    }
+
+
+    @Override
+    public String getNextProducerID()
+    {
+        return this.nextProducerID;
+    }
+
+
+    @Override
     public void close()
     {
-                
+        // nothing to do
     }
 
 }

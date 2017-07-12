@@ -83,6 +83,26 @@ public interface ISOSDataProvider
     
     
     /**
+     * @return true if this provider aggregates data from several producers
+     */
+    public boolean hasMultipleProducers();
+    
+    
+    /**
+     * Prefix to use for generating full FOI URIs
+     * @return
+     */
+    public String getProducerIDPrefix();
+    
+    
+    /**
+     * @return ID of the producer associated to the result
+     * record returned by the last call to getNextResultRecord()
+     */
+    public String getNextProducerID();
+    
+    
+    /**
      * Properly releases all resources accessed by provider
      * (for instance, when connection is ended by client)
      */

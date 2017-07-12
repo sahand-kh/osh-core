@@ -32,6 +32,9 @@ import net.opengis.sensorml.v20.AbstractPhysicalProcess;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataRecord;
 import net.opengis.swe.v20.Vector;
+import org.sensorhub.api.common.IEntity;
+import org.sensorhub.api.common.IEntityGroup;
+import org.sensorhub.api.common.IEventHandler;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModuleStateManager;
 import org.sensorhub.api.sensor.ISensorControlInterface;
@@ -42,6 +45,7 @@ import org.sensorhub.api.sensor.PositionConfig.EulerOrientation;
 import org.sensorhub.api.sensor.SensorConfig;
 import org.sensorhub.api.sensor.SensorEvent;
 import org.sensorhub.api.sensor.SensorException;
+import org.sensorhub.impl.common.EventBus;
 import org.sensorhub.impl.module.AbstractModule;
 import org.sensorhub.utils.MsgUtils;
 import org.vast.ogc.om.SamplingPoint;
@@ -78,20 +82,21 @@ import org.vast.swe.helper.GeoPosHelper;
  */
 public abstract class AbstractSensorModule<ConfigType extends SensorConfig> extends AbstractModule<ConfigType> implements ISensorModule<ConfigType>
 {
-    public final static String DEFAULT_XMLID_PREFIX = "SENSOR_";
-    protected final static String LOCATION_OUTPUT_ID = "SENSOR_LOCATION";
-    protected final static String LOCATION_OUTPUT_NAME = "sensorLocation";
-    protected final static String ERROR_NO_UPDATE = "Sensor Description update is not supported by driver ";
-    protected final static String ERROR_NO_HISTORY = "History of sensor description is not supported by driver ";
-    protected final static String ERROR_NO_ENTITIES = "Multiple entities are not supported by driver ";
+    public static final String DEFAULT_XMLID_PREFIX = "SENSOR_";
+    protected static final String LOCATION_OUTPUT_ID = "SENSOR_LOCATION";
+    protected static final String LOCATION_OUTPUT_NAME = "sensorLocation";
+    protected static final String ERROR_NO_UPDATE = "Sensor Description update is not supported by driver ";
+    protected static final String ERROR_NO_HISTORY = "History of sensor description is not supported by driver ";
+    protected static final String ERROR_NO_ENTITIES = "Multiple entities are not supported by driver ";
     
-    protected final static String UUID_URI_PREFIX = "urn:uuid:";
-    protected final static String STATE_UNIQUE_ID = "UniqueID";
-    protected final static String STATE_LAST_SML_UPDATE = "LastUpdatedSensorDescription";
+    protected static final String UUID_URI_PREFIX = "urn:uuid:";
+    protected static final String STATE_UNIQUE_ID = "UniqueID";
+    protected static final String STATE_LAST_SML_UPDATE = "LastUpdatedSensorDescription";
     
-    private Map<String, ISensorDataInterface> obsOutputs = new LinkedHashMap<String, ISensorDataInterface>();
-    private Map<String, ISensorDataInterface> statusOutputs = new LinkedHashMap<String, ISensorDataInterface>();
-    private Map<String, ISensorControlInterface> controlInputs = new LinkedHashMap<String, ISensorControlInterface>();
+    protected IEventHandler sensorEventHandler;
+    private Map<String, ISensorDataInterface> obsOutputs = new LinkedHashMap<>();
+    private Map<String, ISensorDataInterface> statusOutputs = new LinkedHashMap<>();
+    private Map<String, ISensorControlInterface> controlInputs = new LinkedHashMap<>();
         
     protected DefaultLocationOutput locationOutput;
     protected AbstractPhysicalProcess sensorDescription = new PhysicalSystemImpl();
@@ -107,6 +112,8 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
     @Override
     public void init() throws SensorHubException
     {
+        super.init();
+        
         // reset internal state
         this.uniqueID = null;
         this.xmlID = null;
@@ -114,19 +121,16 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
         this.locationOutput = null;
         this.sensorDescription = new PhysicalSystemImpl();
         removeAllOutputs();
-        removeAllControlInputs();        
+        removeAllControlInputs();
     }
     
     
     @Override
-    public final synchronized void init(ConfigType config) throws SensorHubException
+    protected void postInit()
     {
-        // this sets config and calls init() of derived class
-        super.init(config);
-        
-        // generate random unique ID if sensor driver hasn't generated one
-        // if a random UUID has already been generated it will be restored
-        // by loadState() method that is called after init()
+        // generate random unique ID in case sensor driver hasn't generate one
+        // if a random UUID has already been generated it will be restored by
+        // loadState() method that is called after init()
         if (this.uniqueID == null)
         {
             String uuid = UUID.randomUUID().toString();
@@ -138,14 +142,16 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
             this.randomUniqueID = true;
         }
         
+        // get handler for sensor events
+        this.sensorEventHandler = getParentHub().getEventBus().registerProducer(getUniqueIdentifier(), EventBus.MAIN_TOPIC);        
+        
         // add location output if a location is provided
         LLALocation loc = config.getLocation();
         if (loc != null && locationOutput == null)
         {
             addLocationOutput(Double.NaN);
             locationOutput.updateLocation(System.currentTimeMillis()/1000., loc.lon, loc.lat, loc.alt);
-        }
-            
+        } 
     }
 
 
@@ -211,6 +217,13 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
         return uniqueID;
     }
     
+
+    @Override
+    public IEntityGroup<IEntity> getParentGroup()
+    {
+        return null;
+    }
+
 
     @Override
     public AbstractPhysicalProcess getCurrentDescription()
@@ -296,7 +309,7 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
             // outputs
             if (sensorDescription.getNumOutputs() == 0)
             {
-                for (Entry<String, ? extends ISensorDataInterface> output: getAllOutputs().entrySet())
+                for (Entry<String, ? extends ISensorDataInterface> output: getOutputs().entrySet())
                 {
                     DataComponent outputDesc = output.getValue().getRecordDescription();
                     if (outputDesc == null)
@@ -414,7 +427,7 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
     {
         // send event
         lastUpdatedSensorDescription = updateTime;
-        eventHandler.publishEvent(new SensorEvent(updateTime, this, SensorEvent.Type.SENSOR_CHANGED));
+        sensorEventHandler.publishEvent(new SensorEvent(updateTime, this, SensorEvent.Type.SENSOR_CHANGED));
     }
         
     
@@ -425,9 +438,9 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
 
 
     @Override
-    public Map<String, ISensorDataInterface> getAllOutputs()
+    public Map<String, ISensorDataInterface> getOutputs()
     {
-        Map<String, ISensorDataInterface> allOutputs = new LinkedHashMap<String, ISensorDataInterface>();  
+        Map<String, ISensorDataInterface> allOutputs = new LinkedHashMap<>();  
         allOutputs.putAll(obsOutputs);
         allOutputs.putAll(statusOutputs);
         return Collections.unmodifiableMap(allOutputs);
@@ -524,6 +537,13 @@ public abstract class AbstractSensorModule<ConfigType extends SensorConfig> exte
         
         saver.put(STATE_LAST_SML_UPDATE, this.lastUpdatedSensorDescription);
         saver.flush();
+    }
+    
+    
+    @Override
+    public boolean isEnabled()
+    {
+        return isStarted();
     }
     
     

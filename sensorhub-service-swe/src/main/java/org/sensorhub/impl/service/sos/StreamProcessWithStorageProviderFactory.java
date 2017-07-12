@@ -51,7 +51,7 @@ public class StreamProcessWithStorageProviderFactory extends StreamWithStoragePr
         
         if (timeRange.isBaseAtNow() || timeRange.isBeginNow())
         {
-            if (!producer.isStarted())
+            if (!producer.isEnabled())
                 throw new ServiceException("Process " + MsgUtils.entityString(producer) + " is disabled");
             
             try

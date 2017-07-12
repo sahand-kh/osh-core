@@ -15,8 +15,8 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 package org.sensorhub.api.sensor;
 
 import java.util.Collection;
-import org.sensorhub.api.module.IModuleManager;
-import org.sensorhub.api.module.IModuleProvider;
+import org.sensorhub.api.common.IEntity;
+import org.sensorhub.api.common.IEntityFilter;
 
 
 /**
@@ -27,43 +27,25 @@ import org.sensorhub.api.module.IModuleProvider;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Nov 5, 2010
  */
-public interface ISensorManager extends IModuleManager<ISensorModule<?>>
-{ 
-    
-    /**
-     * Helper method to find a sensor by its global UID (instead of its localID)
-     * @param uid global unique identifier of sensor (= SensorML UID)
-     * @return sensor module instance
-     */
-    public ISensorModule<?> findSensor(String uid);
-    
+public interface ISensorManager
+{   
     
 	/**
-     * Helper method to get the list of connected sensors only
+     * Gets list of all connected sensors
+	 * @param maxLevels max number of recursion levels when retrieving members
+	 *                  of entity groups 
      * @return the list of sensors actually connected to the system
      */
-    public Collection<ISensorModule<?>> getConnectedSensors();
+    public Collection<ISensor> getConnectedSensors(int maxLevels);
+    
     
     
     /**
-	 * Installs a driver package (jar file) from the specified URL
-	 * @param driverPackageURL URL of jar containing implementation of new driver
-     * @param replace if true, an older version of the same driver will be replaced
-	 * @return automatically assigned driver ID
-	 */
-	public String installDriver(String driverPackageURL, boolean replace);
-	
-	
-	/**
-	 * Uninstalls the driver with the specified ID
-	 * @param driverID
-	 */
-	public void uninstallDriver(String driverID);
-	
-	
-	/**
-	 * @return the list of all sensor drivers installed on the system
-	 */
-	public Collection<IModuleProvider> getInstalledSensorDrivers();	
-
+     * Retrieves all sensors matching the filter
+     * @param entityType type of entity to retrieve (subclass of {@link IEntity})
+     * @param filter entity filtering criteria
+     * @return collection of entities with the given type
+     */
+    public Collection<ISensor> findSensors(IEntityFilter filter);
+    
 }

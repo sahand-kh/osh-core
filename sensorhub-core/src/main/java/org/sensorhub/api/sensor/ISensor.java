@@ -42,7 +42,7 @@ public interface ISensor extends IDataProducer, ICommandReceiver
      * Retrieves the list of interfaces to all sensor data outputs
      */
     @Override
-    public Map<String, ? extends ISensorDataInterface> getAllOutputs();
+    public Map<String, ? extends ISensorDataInterface> getOutputs();
 
 
     /**

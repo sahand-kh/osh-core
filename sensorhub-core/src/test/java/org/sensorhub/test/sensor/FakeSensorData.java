@@ -26,7 +26,9 @@ import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.Quantity;
 import net.opengis.swe.v20.Time;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.sensor.SensorDataEvent;
 import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.impl.sensor.AbstractSensorOutput;
@@ -36,6 +38,7 @@ import org.vast.data.QuantityImpl;
 import org.vast.data.TextEncodingImpl;
 import org.vast.data.TimeImpl;
 import org.vast.swe.SWEConstants;
+import org.vast.util.DateTimeFormat;
 
 
 /**
@@ -46,7 +49,7 @@ import org.vast.swe.SWEConstants;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Sep 20, 2013
  */
-public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements IFakeSensorOutput
+public class FakeSensorData extends AbstractSensorOutput<IDataProducer> implements IFakeSensorOutput
 {
     public static final String URI_OUTPUT1 = "urn:blabla:weatherData";
     public static final String URI_OUTPUT1_FIELD1 = "urn:blabla:temperature";
@@ -62,7 +65,7 @@ public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements 
     double samplingPeriod; // seconds
     Deque<DataBlock> dataQueue;
     Timer timer;
-    TimerTask sensorTask;
+    TimerTask sendTask;
     boolean started;
     boolean hasListeners;
     
@@ -76,6 +79,18 @@ public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements 
     public FakeSensorData(FakeSensor sensor, final String name, final int bufferSize, final double samplingPeriod, final int maxSampleCount)
     {
         super(name, sensor);
+        this.name = name;
+        this.bufferSize = bufferSize;
+        this.samplingPeriod = samplingPeriod;
+        this.dataQueue = new LinkedBlockingDeque<DataBlock>(bufferSize);
+        this.maxSampleCount = maxSampleCount;
+        init();
+    }
+    
+    
+    public FakeSensorData(IDataProducer sensor, final String name, final int bufferSize, final double samplingPeriod, final int maxSampleCount, final ISensorHub hub)
+    {
+        super(name, sensor, hub);
         this.name = name;
         this.bufferSize = bufferSize;
         this.samplingPeriod = samplingPeriod;
@@ -122,10 +137,49 @@ public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements 
 
 
     @Override
-    public void start()
+    public void start(boolean waitForListeners)
     {
+        sendTask = new TimerTask()
+        {
+            @Override
+            public void run()
+            {
+                // safety to make sure we don't output more samples than requested
+                // cancel does not seem to be taken into account early enough with high rates
+                if (sampleCount >= maxSampleCount)
+                    return;
+                
+                synchronized (dataQueue)
+                {
+                    // miss random samples 20% of the time
+                    if (Math.random() > 0.8)
+                        return;
+                    
+                    double samplingTime = System.currentTimeMillis() / 1000.;
+                    DataBlock data = new DataBlockDouble(4);
+                    data.setDoubleValue(0, samplingTime);
+                    data.setDoubleValue(1, 1.0 + ((int)(Math.random()*100))/1000.);
+                    data.setDoubleValue(2, 2.0 + ((int)(Math.random()*100))/1000.);
+                    data.setDoubleValue(3, 3.0 + ((int)(Math.random()*100))/1000.);
+                               
+                    sampleCount++;
+                    String isoTime = new DateTimeFormat().formatIso(samplingTime, 0);
+                    System.out.println("Weather record #" + sampleCount + " generated @ " + isoTime);
+                    if (sampleCount >= maxSampleCount)
+                        cancel();
+                    
+                    if (dataQueue.size() == bufferSize)
+                        dataQueue.remove();
+                    dataQueue.offer(data);
+                    
+                    latestRecordTime = System.currentTimeMillis();
+                    eventHandler.publishEvent(new SensorDataEvent(latestRecordTime, FakeSensorData.this, data));
+                }                        
+            }                
+        };
+        
         // we start sending only if we have listeners
-        if (hasListeners)
+        if (hasListeners || !waitForListeners)
             startSending();
         started = true;
     }
@@ -135,47 +189,25 @@ public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements 
     {
         if (timer == null)
         {
-            // start data production timer
-            sensorTask = new TimerTask()
-            {
-                @Override
-                public void run()
-                {
-                    // safety to make sure we don't output more samples than requested
-                    // cancel does not seem to be taken into account early enough with high rates
-                    if (sampleCount >= maxSampleCount)
-                        return;
-                    
-                    synchronized (dataQueue)
-                    {
-                        // miss random samples 20% of the time
-                        if (Math.random() > 0.8)
-                            return;
-                        
-                        double samplingTime = System.currentTimeMillis() / 1000.;
-                        DataBlock data = new DataBlockDouble(4);
-                        data.setDoubleValue(0, samplingTime);
-                        data.setDoubleValue(1, 1.0 + ((int)(Math.random()*100))/1000.);
-                        data.setDoubleValue(2, 2.0 + ((int)(Math.random()*100))/1000.);
-                        data.setDoubleValue(3, 3.0 + ((int)(Math.random()*100))/1000.);
-                                   
-                        sampleCount++;
-                        System.out.println("Record #" + sampleCount + " generated");
-                        if (sampleCount >= maxSampleCount)
-                            cancel();
-                        
-                        if (dataQueue.size() == bufferSize)
-                            dataQueue.remove();
-                        dataQueue.offer(data);
-                        
-                        latestRecordTime = System.currentTimeMillis();
-                        eventHandler.publishEvent(new SensorDataEvent(latestRecordTime, FakeSensorData.this, data));
-                    }                        
-                }                
-            };
-            
             timer = new Timer(name, true);
-            timer.scheduleAtFixedRate(sensorTask, 0, (long)(samplingPeriod * 1000));
+            timer.scheduleAtFixedRate(sendTask, 0, (long)(samplingPeriod * 1000));
+        }
+    }
+
+
+    @Override
+    public DataBlock getLatestRecord()
+    {
+        synchronized (dataQueue)
+        {   
+            // make sure the first record is produced
+            if (!hasListeners & sendTask != null)
+            {
+                while (dataQueue.isEmpty())
+                    sendTask.run();
+            }
+            
+            return dataQueue.peekLast();
         }
     }
     
@@ -227,16 +259,6 @@ public class FakeSensorData extends AbstractSensorOutput<FakeSensor> implements 
     public DataEncoding getRecommendedEncoding()
     {
         return outputEncoding;
-    }
-
-
-    @Override
-    public DataBlock getLatestRecord()
-    {
-        synchronized (dataQueue)
-        {
-            return dataQueue.peekLast();
-        }
     }
 
 

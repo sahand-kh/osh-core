@@ -42,7 +42,7 @@ public class SensorWithStorageProviderFactory extends StreamWithStorageProviderF
               (ISensor)servlet.getParentHub().getModuleRegistry().getModuleById(config.sensorID));
         this.sensorProviderConfig = config;
         
-        if (producer.isStarted() && storage.isStarted())
+        if (producer.isEnabled() && storage.isStarted())
         {
             String liveSensorUID = producer.getCurrentDescription().getUniqueIdentifier();
             String storageSensorUID = storage.getLatestDataSourceDescription().getUniqueIdentifier();
@@ -59,7 +59,7 @@ public class SensorWithStorageProviderFactory extends StreamWithStorageProviderF
         
         if (timeRange.isBaseAtNow() || timeRange.isBeginNow())
         {
-            if (!producer.isStarted())
+            if (!producer.isEnabled())
                 throw new ServiceException("Sensor " + MsgUtils.entityString(producer) + " is disabled");
             
             try

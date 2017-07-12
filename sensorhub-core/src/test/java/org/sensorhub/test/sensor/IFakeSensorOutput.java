@@ -17,6 +17,6 @@ package org.sensorhub.test.sensor;
 
 public interface IFakeSensorOutput
 {
-    public void start();
+    public void start(boolean waitForListeners);
     public void stop();
 }

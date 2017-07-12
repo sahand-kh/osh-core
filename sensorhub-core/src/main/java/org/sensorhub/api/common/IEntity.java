@@ -12,33 +12,49 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.api.data;
+package org.sensorhub.api.common;
 
+import org.sensorhub.api.data.IMultiSourceDataProducer;
 import net.opengis.sensorml.v20.AbstractProcess;
 
 
 /**
  * <p>
- * Base interface for all modules that provide a SensorML description
- * (such as sensors, actuators and processes)
+ * Base interface for all OSH entities that provide a SensorML description
+ * (e.g. sensors, actuators, processes, data producers in general)<br/>
+ * When the entity represents a real world object such as a hardware device,
+ * the entity description should do its best to reflect its current state.
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
- * @since Feb 21, 2015
+ * @since June 9, 2017
  */
-public interface IModuleWithDescription
+public interface IEntity
 {
         
     /**
-     * @return The object's globally unique identifier
+     * @return entity name
+     */
+    public String getName();
+    
+    
+    /**
+     * @return entity globally unique identifier
      */
     public String getUniqueIdentifier();
     
     
     /**
-     * Retrieves most current SensorML description of the entity whose data
-     * is provided by this module. All implementations must return an instance
-     * of AbstractProcess with a valid unique identifier.<br/>
+     * @return the parent entity group or null if this entity is not a member
+     * of any group
+     */
+    public IEntityGroup<? extends IEntity> getParentGroup();
+    
+    
+    /**
+     * Retrieves most current SensorML description of the entity.
+     * All implementations must return an instance of AbstractProcess with
+     * a valid unique identifier.<br/>
      * In the case of a module generating data from multiple entities (e.g. 
      * sensor network), this returns the description of the group as a whole.
      * Descriptions of individual entities within the group are retrived using
@@ -52,7 +68,7 @@ public interface IModuleWithDescription
     /**
      * Used to check when SensorML description was last updated.
      * This is useful to avoid requesting the object when it hasn't changed.
-     * @return Date/time of last description update as unix time (ms since 1970) or
+     * @return date/time of last description update as unix time (ms since 1970) or
      * {@link Long#MIN_VALUE} if description was never updated.
      */
     public long getLastDescriptionUpdate();

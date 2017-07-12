@@ -51,7 +51,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
 {
     protected ISensorHub hub;
     protected Logger logger;
-    protected IEventHandler eventHandler;
+    protected IEventHandler moduleEventHandler;
     protected ConfigType config;
     protected ModuleState state = ModuleState.LOADED;
     protected ModuleSecurity securityHandler;
@@ -115,7 +115,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
             this.config = config;
             
             // get assigned event handler
-            this.eventHandler = getParentHub().getEventBus().registerProducer(config.id, EventBus.MAIN_TOPIC);
+            this.moduleEventHandler = getParentHub().getEventBus().registerProducer(config.id, EventBus.MAIN_TOPIC);
             
             // set default security handler
             this.securityHandler = new ModuleSecurity(this, "all", false);
@@ -137,7 +137,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         try
         {
             setConfiguration(config);
-            eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.CONFIG_CHANGED));
+            moduleEventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.CONFIG_CHANGED));
         }
         catch (Exception e)
         {
@@ -188,10 +188,10 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 stateLock.notifyAll();
                 getLogger().info("Module " + newState);
                 
-                if (eventHandler != null)
+                if (moduleEventHandler != null)
                 {
                     ModuleEvent event = new ModuleEvent(this, newState);
-                    eventHandler.publishEvent(event);
+                    moduleEventHandler.publishEvent(event);
                 }
                 
                 // process delayed start request
@@ -298,10 +298,10 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
                 getLogger().error(msg);
             }
             
-            if (eventHandler != null)
+            if (moduleEventHandler != null)
             {
                 ModuleEvent event = new ModuleEvent(this, this.lastError);               
-                eventHandler.publishEvent(event);
+                moduleEventHandler.publishEvent(event);
             }
         }
     }
@@ -335,10 +335,10 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         this.statusMsg = msg;
         getLogger().info(msg);
         
-        if (eventHandler != null)
+        if (moduleEventHandler != null)
         {
             ModuleEvent event = new ModuleEvent(this, this.statusMsg);               
-            eventHandler.publishEvent(event);
+            moduleEventHandler.publishEvent(event);
         }
     }
     
@@ -361,12 +361,12 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         if (connected)
         {
             reportStatus("Connected to " + remoteServiceName);
-            eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.CONNECTED));
+            moduleEventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.CONNECTED));
         }
         else
         {
             reportStatus("Disconnected from " + remoteServiceName);
-            eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DISCONNECTED));
+            moduleEventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DISCONNECTED));
         }
     }
     
@@ -397,9 +397,9 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         {
             try
             {
-                // default implementation just calls init()
-                // for backward compatibility, we must call the old init method
-                init(config);
+                // default implementation just calls init() and postInit()
+                init();
+                postInit();
                 setState(ModuleState.INITIALIZED);
             }
             catch (Exception e)
@@ -413,7 +413,8 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
 
     @Override
     public void init() throws SensorHubException
-    {        
+    {
+        Asserts.checkState(config != null, "Configuration must be set before calling init()");
     }
     
     
@@ -422,6 +423,19 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     {   
         setConfiguration(config);
         init();
+    }
+    
+    
+    /**
+     * This method is called right after init().<br/>
+     * It is typically implemented whenever a super class needs to run some logic
+     * at the end of the initialization phase even when init() is overriden by
+     * its descendants
+     * @throws SensorHubException
+     */
+    protected void postInit() throws SensorHubException
+    {
+        // to be implemented by derived classes 
     }
 
 
@@ -536,8 +550,8 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     @Override
     public void cleanup() throws SensorHubException
     {
-        if (eventHandler != null)
-            eventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DELETED));
+        if (moduleEventHandler != null)
+            moduleEventHandler.publishEvent(new ModuleEvent(this, ModuleEvent.Type.DELETED));
     }
 
 
@@ -547,7 +561,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
         checkParentHub();        
         synchronized (stateLock)
         {
-            eventHandler.registerListener(listener);
+            moduleEventHandler.registerListener(listener);
             
             // notify current state synchronously while we're locked
             // so the listener can't miss it
@@ -561,7 +575,7 @@ public abstract class AbstractModule<ConfigType extends ModuleConfig> implements
     public void unregisterListener(IEventListener listener)
     {
         checkParentHub();
-        eventHandler.unregisterListener(listener);
+        moduleEventHandler.unregisterListener(listener);
     }
     
     

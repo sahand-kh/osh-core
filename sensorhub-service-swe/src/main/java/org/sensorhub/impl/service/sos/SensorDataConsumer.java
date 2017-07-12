@@ -25,10 +25,10 @@ import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.ISensorDataInterface;
 import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.impl.module.ModuleRegistry;
-import org.sensorhub.impl.sensor.swe.DataStructureHash;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
 import org.sensorhub.impl.service.swe.Template;
 import org.sensorhub.impl.service.swe.TransactionUtils;
+import org.sensorhub.utils.DataStructureHash;
 import org.vast.ogc.om.IObservation;
 import org.vast.ows.sos.SOSException;
 
@@ -127,7 +127,7 @@ public class SensorDataConsumer implements ISOSDataConsumer
     @Override
     public Template getTemplate(String templateID) throws IOException
     {
-        for (ISensorDataInterface output: sensor.getAllOutputs().values())
+        for (ISensorDataInterface output: sensor.getOutputs().values())
         {
             if (templateID.endsWith(output.getName()))
             {

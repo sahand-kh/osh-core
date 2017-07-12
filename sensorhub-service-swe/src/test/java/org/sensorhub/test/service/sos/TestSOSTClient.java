@@ -69,7 +69,7 @@ public class TestSOSTClient
     }
     
     
-    protected ISensorModule<?> buildSensor1(int numSamples) throws Exception
+    protected FakeSensor buildSensor1(int numSamples) throws Exception
     {
         // create test sensor
         SensorConfig sensorCfg = new SensorConfig();
@@ -80,7 +80,7 @@ public class TestSOSTClient
         sensor.setSensorUID(SENSOR_UID);
         sensor.setDataInterfaces(new FakeSensorData(sensor, TestSOSService.NAME_OUTPUT1, 10, SAMPLING_PERIOD, numSamples));
         sensor.requestInit(false);
-        sensor.setStartedState(); // fake started state but don't send data yet
+        sensor.requestStart();
         return sensor;
     }
     
@@ -235,7 +235,7 @@ public class TestSOSTClient
         SOSService sos = sosTest.deployService(true, new SOSProviderConfig[0]);
         
         // start client
-        ISensorModule<?> sensor = buildSensor1(NUM_GEN_SAMPLES);
+        FakeSensor sensor = buildSensor1(NUM_GEN_SAMPLES);
         startClient(sensor.getLocalID(), false, false, 1);
         
         // reduce liveDataTimeout of new provider
@@ -247,7 +247,7 @@ public class TestSOSTClient
                 TestSOSService.URI_PROP1, TestSOSService.TIMERANGE_FUTURE, false);
         
         // start sensor
-        sensor.start();
+        sensor.startSendingData(true);
         
         sosTest.checkGetResultResponse(f.get(), NUM_GEN_SAMPLES, 4);
     }
@@ -260,7 +260,7 @@ public class TestSOSTClient
         SOSService sos = sosTest.deployService(true, new SOSProviderConfig[0]);
         
         // start client
-        ISensorModule<?> sensor = buildSensor1(NUM_GEN_SAMPLES);
+        FakeSensor sensor = buildSensor1(NUM_GEN_SAMPLES);
         startClient(sensor.getLocalID(), false, true, 1);
         
         // reduce liveDataTimeout of new provider
@@ -272,7 +272,7 @@ public class TestSOSTClient
                 TestSOSService.URI_PROP1, TestSOSService.TIMERANGE_FUTURE, false);
         
         // start sensor
-        sensor.start();
+        sensor.startSendingData(true);
         
         sosTest.checkGetResultResponse(f.get(), NUM_GEN_SAMPLES, 4);
         
@@ -287,11 +287,11 @@ public class TestSOSTClient
         sosTest.deployService(true, new SOSProviderConfig[0]);
         
         // start client
-        ISensorModule<?> sensor = buildSensor1(25);
+        FakeSensor sensor = buildSensor1(25);
         SOSTClient client = startClient(sensor.getLocalID(), false, true, 2);
         
         // start sensor
-        sensor.start();
+        sensor.startSendingData(true);
         
         // stop server
         HttpServer.getInstance().stop();

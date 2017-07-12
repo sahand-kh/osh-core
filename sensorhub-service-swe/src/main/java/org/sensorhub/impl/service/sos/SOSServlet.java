@@ -39,6 +39,7 @@ import javax.xml.namespace.QName;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import net.opengis.OgcPropertyList;
 import net.opengis.fes.v20.Conformance;
 import net.opengis.fes.v20.FilterCapabilities;
 import net.opengis.fes.v20.SpatialCapabilities;
@@ -62,6 +63,7 @@ import net.opengis.swe.v20.DataRecord;
 import net.opengis.swe.v20.JSONEncoding;
 import net.opengis.swe.v20.SimpleComponent;
 import net.opengis.swe.v20.TextEncoding;
+import net.opengis.swe.v20.Time;
 import net.opengis.swe.v20.Vector;
 import net.opengis.swe.v20.XMLEncoding;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
@@ -70,6 +72,7 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
+import org.sensorhub.api.ISensorHub;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.ModuleConfig;
@@ -79,7 +82,6 @@ import org.sensorhub.api.persistence.StorageConfig;
 import org.sensorhub.api.security.ISecurityManager;
 import org.sensorhub.api.sensor.ISensorModule;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.SensorHub;
 import org.sensorhub.impl.module.ModuleRegistry;
 import org.sensorhub.impl.persistence.StreamStorageConfig;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
@@ -147,7 +149,8 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     private static final String INVALID_WS_REQ_MSG = "Invalid Websocket request: ";        
     private static final QName EXT_REPLAY = new QName("replayspeed"); // kvp params are always lower case
     private static final QName EXT_WS = new QName("websocket");
-    
+    private static final String PROCEDURE_ID_LABEL = "Procedure ID";
+        
     final transient SOSService service;
     final transient SOSServiceConfig config;
     final transient SOSSecurity securityHandler;
@@ -1019,11 +1022,14 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         
         try
         {
-            // build filtered component tree
-            // always keep sampling time
+            // build filtered component tree, always keeping sampling time
             DataComponent filteredStruct = dataProvider.getResultStructure().copy();
             request.getObservables().add(SWEConstants.DEF_SAMPLING_TIME);
             filteredStruct.accept(new DataStructFilter(request.getObservables()));
+            
+            // also add producer ID if needed
+            if (dataProvider.hasMultipleProducers())
+                addProducerID(filteredStruct, dataProvider.getProducerIDPrefix());
             
             // build and send response
             if (OWSUtils.JSON_MIME_TYPE.equals(request.getFormat()))
@@ -1085,6 +1091,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
         DataComponent resultStructure = dataProvider.getResultStructure();
         DataEncoding resultEncoding = dataProvider.getDefaultResultEncoding();
         boolean customFormatUsed = false;
+        boolean multipleFois = dataProvider.hasMultipleProducers();
         
         try
         {
@@ -2014,6 +2021,38 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
             capabilitiesLock.readLock().unlock();
         }
     }
+
+    
+    protected void addProducerID(DataComponent dataStruct, String foiUriPrefix)
+    {
+        SWEHelper fac = new SWEHelper();
+        
+        // use category component if prefix was detected
+        // or text component otherwise        
+        DataComponent producerIdField;
+        if (foiUriPrefix != null && foiUriPrefix.length() > 2)
+            producerIdField = fac.newCategory(SWEConstants.DEF_PROCEDURE_ID, PROCEDURE_ID_LABEL, null, foiUriPrefix);
+        else
+            producerIdField = fac.newText(SWEConstants.DEF_PROCEDURE_ID, PROCEDURE_ID_LABEL, null);
+        
+        // insert FOI component in data record after time stamp
+        String producerIdName = "procedureID";  
+        if (dataStruct instanceof DataRecord)
+        {
+            OgcPropertyList<DataComponent> fields = ((DataRecord) dataStruct).getFieldList();
+            producerIdField.setName(producerIdName);
+            if (!fields.isEmpty() && fields.get(0) instanceof Time)
+                fields.add(1, producerIdField);
+            else
+                fields.add(0, producerIdField);
+        }
+        else
+        {
+            DataRecord rec = fac.newDataRecord();
+            rec.addField(producerIdName, producerIdField);
+            rec.addField("data", dataStruct);
+        }
+    }
     
     
     /*
@@ -2125,7 +2164,7 @@ public class SOSServlet extends org.vast.ows.sos.SOSServlet
     }
     
     
-    protected SensorHub getParentHub()
+    protected ISensorHub getParentHub()
     {
         return service.getParentHub();
     }

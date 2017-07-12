@@ -21,7 +21,6 @@ import net.opengis.sensorml.v20.AbstractPhysicalProcess;
 import net.opengis.swe.v20.DataBlock;
 import net.opengis.swe.v20.DataRecord;
 import net.opengis.swe.v20.Vector;
-import org.junit.Before;
 import org.junit.Test;
 import org.sensorhub.impl.SensorHub;
 import org.vast.ogc.gml.GMLUtils;
@@ -31,7 +30,6 @@ import org.vast.swe.SWEConstants;
 
 public class TestSensorPosition
 {
-    FakeSensorWithPos sensor;
     double lat = 34.56;
     double lon = 1.2;
     double alt = 568;
@@ -40,14 +38,7 @@ public class TestSensorPosition
     double roll = 3.6;
     
     
-    @Before
-    public void setup() throws Exception
-    {
-        sensor = new FakeSensorWithPos();
-    }
-    
-    
-    protected void checkFoiLocation() throws Exception
+    protected void checkFoiLocation(FakeSensorWithPos sensor) throws Exception
     {
         AbstractFeature f = sensor.getCurrentFeatureOfInterest();
         new GMLUtils(GMLUtils.V3_2).writeFeature(System.out, f, true);
@@ -83,15 +74,16 @@ public class TestSensorPosition
     @Test
     public void testStaticLocation() throws Exception
     {
+        FakeSensorWithPos sensor = new FakeSensorWithPos();
+        sensor.setParentHub(new SensorHub());
         SensorConfigWithPos config = new SensorConfigWithPos();
         config.id = "TEST_SENSOR";
         config.name = "Temp Sensor";
         config.setLocation(lat, lon, alt);
-        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check feature of interest
-        checkFoiLocation();
+        checkFoiLocation(sensor);
         
         // check SensorML position
         AbstractPhysicalProcess sensorDesc = sensor.getCurrentDescription();
@@ -106,11 +98,12 @@ public class TestSensorPosition
     @Test
     public void testStaticOrientation() throws Exception
     {
+        FakeSensorWithPos sensor = new FakeSensorWithPos();
+        sensor.setParentHub(new SensorHub());
         SensorConfigWithPos config = new SensorConfigWithPos();
         config.id = "TEST_SENSOR";
         config.name = "Temp Sensor";
         config.setOrientation(heading, pitch, roll);
-        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check there is no feature of interest
@@ -129,16 +122,17 @@ public class TestSensorPosition
     @Test
     public void testStaticLocationAndOrientation() throws Exception
     {
+        FakeSensorWithPos sensor = new FakeSensorWithPos();
+        sensor.setParentHub(new SensorHub());
         SensorConfigWithPos config = new SensorConfigWithPos();
         config.id = "TEST_SENSOR";
         config.name = "Video Camera";        
         config.setLocation(lat, lon, alt);
         config.setOrientation(heading, pitch, roll);
-        sensor.setParentHub(new SensorHub());
         sensor.init(config);
         
         // check feature of interest
-        checkFoiLocation();
+        checkFoiLocation(sensor);
         
         // check SensorML position
         AbstractPhysicalProcess sensorDesc = sensor.getCurrentDescription();

@@ -17,23 +17,29 @@ package org.sensorhub.test.service.sos;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import javax.xml.namespace.QName;
 import net.opengis.gml.v32.AbstractFeature;
 import net.opengis.gml.v32.Point;
 import net.opengis.gml.v32.impl.GMLFactory;
 import net.opengis.sensorml.v20.AbstractProcess;
 import net.opengis.sensorml.v20.PhysicalComponent;
+import net.opengis.sensorml.v20.PhysicalSystem;
+import org.sensorhub.api.ISensorHub;
+import org.sensorhub.api.common.IEntity;
+import org.sensorhub.api.common.IEntityGroup;
 import org.sensorhub.api.common.IEventListener;
+import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IMultiSourceDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
 import org.sensorhub.test.sensor.FakeSensor;
+import org.sensorhub.test.sensor.FakeSensorData;
+import org.sensorhub.test.sensor.IFakeSensorOutput;
 import org.vast.ogc.gml.GenericFeatureImpl;
-import org.vast.sensorML.SMLHelper;
+import org.vast.sensorML.SMLFactory;
 
 
 public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceDataProducer
@@ -42,30 +48,58 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
     static String FOI_UID_PREFIX = "urn:blabla:myfois:";
     static String SENSOR_UID_PREFIX = "urn:blabla:sensors:";
     GMLFactory gmlFac = new GMLFactory(true);
-    Map<String, IDataProducer> producers;
+    Map<String, IDataProducer> sensors;
     Map<String, AbstractFeature> fois;
-    Set<String> foiIDs;
     
     
     class FakeDataProducer implements IDataProducer
     {
-        String entityID;
         PhysicalComponent sensor;
+        AbstractFeature foi;
+        Map<String, IStreamingDataInterface> outputs = new HashMap<>();
         
-        public FakeDataProducer(String entityID)
+        public FakeDataProducer(int entityIndex)
         {
-            this.entityID = entityID;
+            Point p = gmlFac.newPoint();
+            p.setPos(new double[] {entityIndex, entityIndex, 0.0});
             
-            SMLHelper fac = new SMLHelper();
+            // create sensor description
+            String entityID = SENSOR_UID_PREFIX + entityIndex;
+            SMLFactory fac = new SMLFactory();
             sensor = fac.newPhysicalComponent();
             sensor.setUniqueIdentifier(entityID);
             sensor.setName("Networked sensor " + entityID.substring(entityID.lastIndexOf(':')+1));
+            sensor.addPositionAsPoint(p);
+            
+            // create FOI
+            QName fType = new QName("http://myNsUri", "MyFeature");
+            String foiID = FOI_UID_PREFIX + entityIndex;
+            foi = new GenericFeatureImpl(fType);
+            foi.setId("F" + entityIndex);
+            foi.setUniqueIdentifier(foiID);
+            foi.setName("FOI" + entityIndex);
+            foi.setDescription("This is feature of interest #" + entityIndex);           
+            foi.setLocation(p);            
+            fois.put(foiID, foi);
+            
+            // create output
+            ISensorHub hub = FakeSensorNetWithFoi.this.getParentHub();
+            outputs.put(TestSOSService.NAME_OUTPUT1,
+                    new FakeSensorData(this, TestSOSService.NAME_OUTPUT1, 1, TestSOSService.SAMPLING_PERIOD, TestSOSService.NUM_GEN_SAMPLES, hub));
+            outputs.put(TestSOSService.NAME_OUTPUT2,
+                    new FakeSensorData2(this, TestSOSService.NAME_OUTPUT2, TestSOSService.SAMPLING_PERIOD, TestSOSService.NUM_GEN_SAMPLES, null, hub));
+        }
+
+        @Override
+        public IEntityGroup<? extends IEntity> getParentGroup()
+        {
+            return FakeSensorNetWithFoi.this;
         }
         
         @Override
         public String getUniqueIdentifier()
         {
-            return entityID;
+            return sensor.getUniqueIdentifier();
         }
 
         @Override
@@ -81,15 +115,15 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
         }
 
         @Override
-        public Map<String, ? extends IStreamingDataInterface> getAllOutputs()
+        public Map<String, ? extends IStreamingDataInterface> getOutputs()
         {
-            return FakeSensorNetWithFoi.this.getAllOutputs();
+            return Collections.unmodifiableMap(outputs);
         }
 
         @Override
         public AbstractFeature getCurrentFeatureOfInterest()
         {
-            return fois.get(entityID);
+            return foi;
         }
 
         @Override
@@ -100,77 +134,129 @@ public class FakeSensorNetWithFoi extends FakeSensor implements IMultiSourceData
         @Override
         public void unregisterListener(IEventListener listener)
         {                
+        }
+
+        @Override
+        public String getName()
+        {
+            return sensor.getName();
+        }
+
+        @Override
+        public boolean isEnabled()
+        {
+            return FakeSensorNetWithFoi.this.isStarted();
         }            
     };
     
     
     public FakeSensorNetWithFoi()
     {
-        producers = new LinkedHashMap<String, IDataProducer>();
-        fois = new LinkedHashMap<String, AbstractFeature>();
-        foiIDs = new LinkedHashSet<String>();
+        this.uniqueID = "urn:sensors:mysensornetwork:001";
+        this.xmlID = "SENSORNET";
+    }
+    
+    
+    @Override
+    public void init()
+    {
+        sensors = new LinkedHashMap<>();
+        fois = new LinkedHashMap<>();
         
         for (int foiNum = 1; foiNum <= MAX_FOIS; foiNum++)
         {
-            String producerID = SENSOR_UID_PREFIX + foiNum;
-            
-            // create feature
-            QName fType = new QName("http://myNsUri", "MyFeature");
-            AbstractFeature foi = new GenericFeatureImpl(fType);
-            foi.setId("F" + foiNum);
-            foi.setUniqueIdentifier(FOI_UID_PREFIX + foiNum);
-            foi.setName("FOI" + foiNum);
-            foi.setDescription("This is feature of interest #" + foiNum);
-            Point p = gmlFac.newPoint();
-            p.setPos(new double[] {foiNum, foiNum, 0.0});
-            foi.setLocation(p);
-            fois.put(producerID, foi);
-            foiIDs.add(foi.getUniqueIdentifier());
-            
-            // create producer
-            
-            
-            producers.put(producerID, new FakeDataProducer(producerID));
-        }        
-    }
-    
-    
-    @Override
-    public Set<String> getEntityIDs()
-    {
-        return fois.keySet();
+            FakeDataProducer producer = new FakeDataProducer(foiNum);
+            sensors.put(producer.getUniqueIdentifier(), producer);
+        }
     }
 
 
     @Override
-    public IDataProducer getProducer(String entityID)
+    public Map<String, IDataProducer> getEntities()
     {
-        return producers.get(entityID);
+        return Collections.unmodifiableMap(sensors);
     }
 
 
     @Override
-    public Collection<AbstractFeature> getFeaturesOfInterest()
+    public Map<String, AbstractFeature> getFeaturesOfInterest()
     {
-        return Collections.unmodifiableCollection(fois.values());
-    }
-
-
-    @Override
-    public Collection<String> getFeaturesOfInterestIDs()
-    {
-        return Collections.unmodifiableCollection(foiIDs);
+        return Collections.unmodifiableMap(fois);
     }
 
 
     @Override
     public Collection<String> getEntitiesWithFoi(String foiID)
     {
-        if (!foiIDs.contains(foiID))
+        if (!fois.containsKey(foiID))
             return Collections.EMPTY_SET;
         
         String entityID = foiID.replace(FOI_UID_PREFIX, SENSOR_UID_PREFIX);
         return Arrays.asList(entityID);
+    }
+
+
+    @Override
+    protected void updateSensorDescription()
+    {
+        synchronized (sensorDescLock)
+        {
+            super.updateSensorDescription();
+            
+            int index = 0;
+            for (IDataProducer sensor: sensors.values())
+            {
+                index++;
+                ((PhysicalSystem)sensorDescription).getComponentList().add("sensor"+index, sensor.getUniqueIdentifier(), null);
+            }
+        }
+    }
+
+
+    @Override
+    public void start() throws SensorHubException
+    {        
+    }
+    
+    
+    @Override
+    public void stop() throws SensorHubException
+    {
+        for (IDataProducer sensor: sensors.values())
+            for (IStreamingDataInterface o: sensor.getOutputs().values())
+                ((IFakeSensorOutput)o).stop();
+    }
+
+
+    @Override
+    public boolean isConnected()
+    {
+        return true;
+    }
+    
+    
+    @Override
+    public void cleanup() throws SensorHubException
+    {
+    }
+
+
+    public void startSendingData(boolean waitForListeners)
+    {
+        for (IDataProducer sensor: sensors.values())
+            for (IStreamingDataInterface o: sensor.getOutputs().values())
+                ((IFakeSensorOutput)o).start(waitForListeners);        
+    }
+    
+    
+    public boolean hasMoreData()
+    {
+        for (IDataProducer sensor: sensors.values())
+            for (IStreamingDataInterface o: sensor.getOutputs().values())
+                if (o.isEnabled())
+                    return true;
+        
+        return false;
     }
     
 }

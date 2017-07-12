@@ -22,7 +22,7 @@ import org.sensorhub.api.common.IEventProducer;
 
 /**
  * <p>
- * Generic interface for all data producers using the SWE model to describe
+ * Output interface used by data producers using the SWE model to describe
  * structure and encoding of data they generate (e.g. sensors, processes...)
  * </p>
  *
@@ -33,16 +33,16 @@ public interface IStreamingDataInterface extends IEventProducer
 {
 
     /**
-     * Allows by-reference access to parent module
-     * @return parent module instance
+     * Allows by-reference access to parent producer
+     * @return parent producer instance
      */
-    public IDataProducer getParentModule();
+    public IDataProducer getProducer();
     
     
     /**
      * Gets this output interface name.
      * <p><i>It MUST be the name reported in the map by getXXXOutputs methods
-     * of {@link org.sensorhub.api.data.IDataProducerModule}</i></p>
+     * of {@link org.sensorhub.api.data.IDataProducer}</i></p>
      * @return name of this data interface
      */
     public String getName();

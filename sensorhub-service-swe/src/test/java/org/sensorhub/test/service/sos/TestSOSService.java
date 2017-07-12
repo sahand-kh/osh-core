@@ -43,8 +43,6 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.sensorhub.api.common.Event;
-import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.module.ModuleEvent.ModuleState;
 import org.sensorhub.api.persistence.IRecordStorageModule;
 import org.sensorhub.api.sensor.ISensorModule;
@@ -55,6 +53,7 @@ import org.sensorhub.impl.persistence.InMemoryBasicStorage;
 import org.sensorhub.impl.persistence.InMemoryStorageConfig;
 import org.sensorhub.impl.persistence.StreamStorageConfig;
 import org.sensorhub.impl.persistence.perst.BasicStorageConfig;
+import org.sensorhub.impl.persistence.perst.MultiEntityStorageImpl;
 import org.sensorhub.impl.persistence.perst.ObsStorageImpl;
 import org.sensorhub.impl.service.HttpServer;
 import org.sensorhub.impl.service.HttpServerConfig;
@@ -97,7 +96,7 @@ public class TestSOSService
     static final String NAME_OUTPUT1 = "weatherOut";
     static final String NAME_OUTPUT2 = "imageOut";
     static final String UID_SENSOR1 = "urn:sensors:mysensor:001";
-    static final String UID_SENSOR2 = "urn:sensors:mysensor:002";
+    static final String UID_SENSOR2 = "urn:sensors:mysensornet:002";
     static final String URI_OFFERING1 = "urn:mysos:sensor1";
     static final String URI_OFFERING2 = "urn:mysos:sensor2";
     static final String URI_PROP1 = FakeSensorData.URI_OUTPUT1;
@@ -180,11 +179,11 @@ public class TestSOSService
     
     protected SensorDataProviderConfig buildSensorProvider1() throws Exception
     {
-        return buildSensorProvider1(true);
+        return buildSensorProvider1(true, true);
     }
     
     
-    protected SensorDataProviderConfig buildSensorProvider1(boolean start) throws Exception
+    protected SensorDataProviderConfig buildSensorProvider1(boolean start, boolean startSending) throws Exception
     {
         // create test sensor
         SensorConfig sensorCfg = new SensorConfig();
@@ -195,7 +194,11 @@ public class TestSOSService
         sensor.setSensorUID(UID_SENSOR1);
         sensor.setDataInterfaces(new FakeSensorData(sensor, NAME_OUTPUT1, 10, SAMPLING_PERIOD, NUM_GEN_SAMPLES));
         if (start)
+        {
             moduleRegistry.startModule(sensorCfg.id, TIMEOUT);
+            if (startSending)
+                sensor.startSendingData(true);
+        }
         
         // create SOS data provider config
         SensorDataProviderConfig provCfg = new SensorDataProviderConfig();
@@ -211,11 +214,11 @@ public class TestSOSService
     
     protected SensorDataProviderConfig buildSensorProvider2() throws Exception
     {
-        return buildSensorProvider2(true);
+        return buildSensorProvider2(true, true);
     }
     
     
-    protected SensorDataProviderConfig buildSensorProvider2(boolean start) throws Exception
+    protected SensorDataProviderConfig buildSensorProvider2(boolean start, boolean startSending) throws Exception
     {
         // create test sensor
         SensorConfig sensorCfg = new SensorConfig();
@@ -224,11 +227,12 @@ public class TestSOSService
         sensorCfg.name = "Sensor2";
         FakeSensorNetWithFoi sensor = (FakeSensorNetWithFoi)moduleRegistry.loadModule(sensorCfg);
         sensor.setSensorUID(UID_SENSOR2);
-        sensor.setDataInterfaces(
-                new FakeSensorData(sensor, NAME_OUTPUT1, 1, SAMPLING_PERIOD, NUM_GEN_SAMPLES),
-                new FakeSensorData2(sensor, NAME_OUTPUT2, SAMPLING_PERIOD, NUM_GEN_SAMPLES, obsFoiMap));
         if (start)
+        {
             moduleRegistry.startModule(sensorCfg.id, TIMEOUT);
+            if (startSending)
+                sensor.startSendingData(true);
+        }
         
         // create SOS data provider config
         SensorDataProviderConfig provCfg = new SensorDataProviderConfig();
@@ -244,13 +248,13 @@ public class TestSOSService
     
     protected SensorDataProviderConfig buildSensorProvider1WithStorage() throws Exception
     {
-        return buildSensorProvider1WithStorage(true);
+        return buildSensorProvider1WithStorage(true, true);
     }
     
     
-    protected SensorDataProviderConfig buildSensorProvider1WithStorage(boolean start) throws Exception
+    protected SensorDataProviderConfig buildSensorProvider1WithStorage(boolean start, boolean startSending) throws Exception
     {
-        SensorDataProviderConfig sosProviderConfig = buildSensorProvider1(start);
+        SensorDataProviderConfig sosProviderConfig = buildSensorProvider1(start, false);
                        
         // configure in-memory storage
         StreamStorageConfig streamStorageConfig = new StreamStorageConfig();
@@ -267,26 +271,32 @@ public class TestSOSService
         else
             storage.waitForState(ModuleState.STARTING, TIMEOUT);
                 
-        // configure storage for sensor
-        sosProviderConfig.storageID = storage.getLocalID();
+        // start sending data if requested
+        if (startSending)
+        {
+            FakeSensor sensor = (FakeSensor)moduleRegistry.getModuleById(sosProviderConfig.sensorID);
+            sensor.startSendingData(true);
+        }     
         
+        // configure storage for sensor
+        sosProviderConfig.storageID = storage.getLocalID();        
         return sosProviderConfig;
     }
     
     
     protected SensorDataProviderConfig buildSensorProvider2WithObsStorage() throws Exception
     {
-        return buildSensorProvider2WithObsStorage(true);
+        return buildSensorProvider2WithObsStorage(true, true);
     }
     
     
-    protected SensorDataProviderConfig buildSensorProvider2WithObsStorage(boolean start) throws Exception
+    protected SensorDataProviderConfig buildSensorProvider2WithObsStorage(boolean start, boolean startSending) throws Exception
     {
-        SensorDataProviderConfig sosProviderConfig = buildSensorProvider2(start);
+        SensorDataProviderConfig sosProviderConfig = buildSensorProvider2(start, false);
                        
         // configure object DB storage
         BasicStorageConfig storageConfig = new BasicStorageConfig();
-        storageConfig.moduleClass = ObsStorageImpl.class.getCanonicalName();
+        storageConfig.moduleClass = MultiEntityStorageImpl.class.getCanonicalName();
         storageConfig.storagePath = dbFile.getAbsolutePath();
         StreamStorageConfig streamStorageConfig = new StreamStorageConfig();
         streamStorageConfig.name = "Obs Storage";
@@ -296,7 +306,18 @@ public class TestSOSService
         
         // start storage module
         IRecordStorageModule<?> storage = (IRecordStorageModule<?>)moduleRegistry.loadModule(streamStorageConfig, TIMEOUT);
-                
+        if (start)
+            storage.waitForState(ModuleState.STARTED, TIMEOUT);
+        else
+            storage.waitForState(ModuleState.STARTING, TIMEOUT);
+        
+        // start sending data if requested
+        if (startSending)
+        {
+            FakeSensor sensor = (FakeSensor)moduleRegistry.getModuleById(sosProviderConfig.sensorID);
+            sensor.startSendingData(true);
+        }     
+        
         // configure storage for sensor
         sosProviderConfig.storageID = storage.getLocalID();
         
@@ -304,28 +325,19 @@ public class TestSOSService
     }
     
     
-    protected FakeSensor startSending(SensorDataProviderConfig sosProviderConfig, boolean waitForFirstRecord) throws Exception
+    protected FakeSensor startSending(String sensorID) throws Exception
     {
-        final ReentrantLock lock = new ReentrantLock();
-        final Condition firstRecord = lock.newCondition();
-        
-        FakeSensor sensor = (FakeSensor)moduleRegistry.startModule(sosProviderConfig.sensorID, TIMEOUT);
-        sensor.getAllOutputs().get(NAME_OUTPUT1).registerListener(new IEventListener() {
-            public void handleEvent(Event<?> event)
-            { 
-                lock.lock();
-                firstRecord.signal();
-                lock.unlock();
-            }
-        });
-        
-        if (waitForFirstRecord)
-        {
-            lock.lock();
-            assertTrue("No data available before timeout", firstRecord.await(10, TimeUnit.SECONDS));
-            lock.unlock();
-        }
-        
+        FakeSensor sensor = (FakeSensor)moduleRegistry.getModuleById(sensorID);
+        sensor.startSendingData(false);
+        return sensor;
+    }
+    
+    
+    protected FakeSensor startSendingAndWaitForAllRecords(String sensorID) throws Exception
+    {
+        FakeSensor sensor = startSending(sensorID);
+        while (sensor.hasMoreData())
+            Thread.sleep(((long)SAMPLING_PERIOD*200));
         return sensor;
     }
     
@@ -550,8 +562,8 @@ public class TestSOSService
     @Test
     public void testGetCapabilitiesLiveTimeRange() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider1(false);
-        SensorDataProviderConfig provider2 = buildSensorProvider2(true);
+        SensorDataProviderConfig provider1 = buildSensorProvider1(false, false);
+        SensorDataProviderConfig provider2 = buildSensorProvider2(true, true);
         provider1.liveDataTimeout = 0.5;
         provider2.liveDataTimeout = 1.0;
         final SOSService sos = deployService(provider2, provider1);
@@ -561,7 +573,7 @@ public class TestSOSService
         
         // sensor1 is not started, sensor2 is started but not sending data
         InputStream is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        DOMHelper dom = checkOfferings(is, new String[] {UID_SENSOR2});
+        DOMHelper dom = checkOfferings(is, UID_SENSOR2);
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");
         
         // start sensor1
@@ -570,30 +582,30 @@ public class TestSOSService
             public boolean check() { return sos.getCapabilities().getLayers().size() == 2; }
         };
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");
         checkOfferingTimeRange(dom, 1, "unknown", "unknown");
         
         // trigger measurements from sensor1, wait for measurements and check capabilities again
-        startSending(provider1, true);
+        startSending(provider1.sensorID);
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");
         checkOfferingTimeRange(dom, 1, "now", "now");
         
         // trigger measurements from sensor2, wait for measurements and check capabilities again
-        FakeSensor sensor2 = startSending(provider2, true);
+        FakeSensor sensor2 = (FakeSensor)startSending(provider2.sensorID);
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         checkOfferingTimeRange(dom, 0, "now", "now");
         checkOfferingTimeRange(dom, 1, "now", "now");
         
         // wait until timeout
-        while (sensor2.getAllOutputs().get(NAME_OUTPUT1).isEnabled())
+        while (sensor2.hasMoreData())
             Thread.sleep((long)(SAMPLING_PERIOD*1000));
         Thread.sleep((long)(provider2.liveDataTimeout*1000));
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         checkOfferingTimeRange(dom, 0, "unknown", "unknown");
         checkOfferingTimeRange(dom, 1, "unknown", "unknown");
     }
@@ -602,27 +614,29 @@ public class TestSOSService
     @Test
     public void testGetCapabilitiesLiveAndHistorical() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider1WithStorage(false);
-        SensorDataProviderConfig provider2 = buildSensorProvider2WithObsStorage(true);
+        SensorDataProviderConfig provider1 = buildSensorProvider1WithStorage(false, false);
+        SensorDataProviderConfig provider2 = buildSensorProvider2WithObsStorage(true, true);
         provider1.liveDataTimeout = 100.0;
         provider2.liveDataTimeout = 100.0;
-        deployService(provider2, provider1);
+        final SOSService sos = deployService(provider2, provider1);
         
         // wait for at least one record to be in storage
         Thread.sleep(((long)(SAMPLING_PERIOD*1000)));
         
         // sensor1 is not started, sensor2 is started and sending data
         InputStream is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        DOMHelper dom = checkOfferings(is, new String[] {UID_SENSOR2});
+        DOMHelper dom = checkOfferings(is, UID_SENSOR2);
         String currentIsoTime = new DateTimeFormat().formatIso(System.currentTimeMillis()/1000., 0);
         checkOfferingTimeRange(dom, 0, currentIsoTime, "now");
         
         // start sensor1 and wait for at least one record to be in storage
         moduleRegistry.startModule(provider1.sensorID);
-        Thread.sleep(((long)(3*SAMPLING_PERIOD*1000)));
+        new WaitForCondition(5000L) {
+            public boolean check() { return sos.getCapabilities().getLayers().size() == 2; }
+        };
         
         is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         currentIsoTime = new DateTimeFormat().formatIso(System.currentTimeMillis()/1000., 0);
         checkOfferingTimeRange(dom, 0, currentIsoTime, "now");
         checkOfferingTimeRange(dom, 1, currentIsoTime, "now");
@@ -632,19 +646,19 @@ public class TestSOSService
     @Test
     public void testGetCapabilitiesLiveAndHistoricalAfterTimeOut() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider1WithStorage(true);
-        SensorDataProviderConfig provider2 = buildSensorProvider2WithObsStorage(true);
+        SensorDataProviderConfig provider1 = buildSensorProvider1WithStorage(true, true);
+        SensorDataProviderConfig provider2 = buildSensorProvider2WithObsStorage(true, true);
         provider1.liveDataTimeout = 1.0;
         provider2.liveDataTimeout = 100.0;
         deployService(provider2, provider1);
         
-        // wait for time out from sensor2
-        FakeSensor sensor1 = getSensorModule(1);
-        while (sensor1.getAllOutputs().get(NAME_OUTPUT1).isEnabled())
-            Thread.sleep((long)(SAMPLING_PERIOD*1000));
+        // wait for time out from sensor1
+        FakeSensor sensor1 = getSensorModule(0);
+        while (sensor1.hasMoreData())
+            Thread.sleep((long)(SAMPLING_PERIOD*500));
         Thread.sleep((long)((SAMPLING_PERIOD+provider1.liveDataTimeout*2)*1000));
         InputStream is = new URL(HTTP_ENDPOINT + GETCAPS_REQUEST).openStream();
-        DOMHelper dom = checkOfferings(is, new String[] {UID_SENSOR2, UID_SENSOR1});
+        DOMHelper dom = checkOfferings(is, UID_SENSOR2, UID_SENSOR1);
         String currentIsoTime = new DateTimeFormat().formatIso(System.currentTimeMillis()/1000., 0);
         checkOfferingTimeRange(dom, 0, currentIsoTime, "now");
         checkOfferingTimeRange(dom, 1, currentIsoTime, currentIsoTime);
@@ -782,9 +796,7 @@ public class TestSOSService
     @Test
     public void testGetResultNow() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider1();
-        deployService(provider1);
-        startSending(provider1, true);
+        deployService(buildSensorProvider1());
         
         String[] records = sendGetResult(URI_OFFERING1, URI_PROP1_FIELD2, TIMERANGE_NOW);
         checkGetResultResponse(records, 1, 2);
@@ -794,19 +806,17 @@ public class TestSOSService
     @Test
     public void testGetResultNowMultiFoi() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider2();
-        deployService(provider1);
-        startSending(provider1, true);
+        deployService(buildSensorProvider2());
         
         String[] records = sendGetResult(URI_OFFERING2, URI_PROP1_FIELD2, TIMERANGE_NOW);
-        checkGetResultResponse(records, 4, 2);
+        checkGetResultResponse(records, 3, 2);
     }
     
     
     @Test
     public void testGetResultNowDisabledSensor() throws Exception
     {
-        SensorDataProviderConfig provider1 = buildSensorProvider1();
+        SensorDataProviderConfig provider1 = buildSensorProvider1(true, false);
         provider1.liveDataTimeout = 0;
         deployService(provider1);
         
@@ -866,15 +876,14 @@ public class TestSOSService
     @Test
     public void testGetResultBeforeDataIsAvailable() throws Exception
     {
-        deployService(buildSensorProvider1(false));
-        FakeSensor sensor1 = getSensorModule(0);
-        sensor1.setStartedState();
+        deployService(buildSensorProvider1(true, false));
+        FakeSensor sensor1 = (FakeSensor)getSensorModule(0);
         
         Future<String[]> future = sendGetResultAsync(URI_OFFERING1, URI_PROP1_FIELD1, TIMERANGE_FUTURE, false);
         
         // actually start sending data after only 1s
         Thread.sleep(1000);
-        sensor1.start();
+        sensor1.startSendingData(true);
 
         try
         {
@@ -949,15 +958,14 @@ public class TestSOSService
     @Test
     public void testGetResultWebSocketBeforeDataIsAvailable() throws Exception
     {
-        deployService(buildSensorProvider1(false));
-        FakeSensor sensor1 = getSensorModule(0);
-        sensor1.setStartedState();
-        
+        deployService(buildSensorProvider1(true, false));
+        FakeSensor sensor1 = (FakeSensor)getSensorModule(0);
+                
         Future<String[]> future = sendGetResultAsync(URI_OFFERING1, URI_PROP1_FIELD1, TIMERANGE_FUTURE, true);
         
-        // actually start sending data after only 1s
-        Thread.sleep(1000);
-        sensor1.start();
+        // actually start sending data after only 0.5s
+        Thread.sleep(500);
+        sensor1.startSendingData(true);
 
         try
         {
@@ -985,7 +993,7 @@ public class TestSOSService
     private FakeSensor getSensorModule(int index)
     {
         Collection<ISensorModule> sensors = moduleRegistry.getLoadedModules(ISensorModule.class);
-        return (FakeSensor)sensors.toArray(new ISensorModule[0])[index];
+        return sensors.toArray(new FakeSensor[0])[index];
     }
     
     
@@ -996,7 +1004,7 @@ public class TestSOSService
         
         // wait until data has been produced and archived
         FakeSensor sensor = getSensorModule(0);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT1).isEnabled())
+        while (sensor.hasMoreData())
             Thread.sleep(((long)SAMPLING_PERIOD*500));
         
         DOMHelper dom = sendRequest(generateGetObsEndNow(URI_OFFERING1, URI_PROP1), false);        
@@ -1010,8 +1018,8 @@ public class TestSOSService
         deployService(buildSensorProvider1WithStorage());
         
         // wait until data has been produced and archived
-        FakeSensor sensor = getSensorModule(0);;
-        while (sensor.getAllOutputs().get(NAME_OUTPUT1).isEnabled())
+        FakeSensor sensor = getSensorModule(0);
+        while (sensor.hasMoreData())
             Thread.sleep(((long)SAMPLING_PERIOD*500));
                 
         // first get capabilities to know available time range
@@ -1047,7 +1055,7 @@ public class TestSOSService
         
         // wait until data has been produced and archived
         FakeSensor sensor = getSensorModule(1);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
+        while (sensor.hasMoreData())
             Thread.sleep(((long)SAMPLING_PERIOD*500));
         DOMHelper dom;
         
@@ -1153,12 +1161,12 @@ public class TestSOSService
         obsFoiMap.put(3, 2);
         obsFoiMap.put(4, 3);
         
-        deployService(buildSensorProvider1(), buildSensorProvider2WithObsStorage());
+        SensorDataProviderConfig sensor1 = buildSensorProvider1();
+        SensorDataProviderConfig sensor2 = buildSensorProvider2WithObsStorage();
+        deployService(sensor1, sensor2);
         
         // wait until data has been produced and archived
-        FakeSensor sensor = getSensorModule(1);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
-            Thread.sleep(((long)SAMPLING_PERIOD*500));        
+        startSendingAndWaitForAllRecords(sensor2.sensorID);      
         
         testGetFoisByID(1);
         testGetFoisByID(2);
@@ -1215,12 +1223,12 @@ public class TestSOSService
         obsFoiMap.put(4, 2);
         obsFoiMap.put(5, 3);
         
-        deployService(buildSensorProvider1(), buildSensorProvider2WithObsStorage());
+        SensorDataProviderConfig sensor1 = buildSensorProvider1();
+        SensorDataProviderConfig sensor2 = buildSensorProvider2WithObsStorage();
+        deployService(sensor1, sensor2);
         
         // wait until data has been produced and archived
-        FakeSensor sensor = getSensorModule(1);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
-            Thread.sleep(((long)SAMPLING_PERIOD*500));
+        startSendingAndWaitForAllRecords(sensor2.sensorID);
         
         testGetFoisByBbox(new Bbox(0.5, 0.5, 0.0, 1.5, 1.5, 0.0), 1);
         testGetFoisByBbox(new Bbox(1.5, 1.5, 0.0, 2.5, 2.5, 0.0), 2);
@@ -1255,13 +1263,13 @@ public class TestSOSService
         obsFoiMap.put(4, 2);
         obsFoiMap.put(5, 3);
         
-        deployService(buildSensorProvider1(), buildSensorProvider2WithObsStorage());
+        SensorDataProviderConfig sensor1 = buildSensorProvider1();
+        SensorDataProviderConfig sensor2 = buildSensorProvider2WithObsStorage();
+        deployService(sensor1, sensor2);
         
         // wait until data has been produced and archived
-        FakeSensor sensor = getSensorModule(1);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
-            Thread.sleep(((long)SAMPLING_PERIOD*500));        
-
+        startSendingAndWaitForAllRecords(sensor2.sensorID);
+        
         testGetFoisByProcedure(Arrays.asList(UID_SENSOR1), new int[0]);
         testGetFoisByProcedure(Arrays.asList(UID_SENSOR2), 1, 2, 3);
         testGetFoisByProcedure(Arrays.asList(UID_SENSOR1, UID_SENSOR2), 1, 2, 3);
@@ -1294,12 +1302,12 @@ public class TestSOSService
         obsFoiMap.put(4, 2);
         obsFoiMap.put(5, 3);
         
-        deployService(buildSensorProvider1(), buildSensorProvider2WithObsStorage());
+        SensorDataProviderConfig sensor1 = buildSensorProvider1();
+        SensorDataProviderConfig sensor2 = buildSensorProvider2WithObsStorage();
+        deployService(sensor1, sensor2);
         
         // wait until data has been produced and archived
-        FakeSensor sensor = getSensorModule(1);
-        while (sensor.getAllOutputs().get(NAME_OUTPUT2).isEnabled())
-            Thread.sleep(((long)SAMPLING_PERIOD*500));
+        startSendingAndWaitForAllRecords(sensor2.sensorID);
         
         testGetFoisByObservables(Arrays.asList("urn:blabla:image"), 1, 2, 3);
         testGetFoisByObservables(Arrays.asList("urn:blabla:RedChannel"), 1, 2, 3);

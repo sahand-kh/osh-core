@@ -18,14 +18,14 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class DefaultThreadFactory implements ThreadFactory
+public class EventThreadFactory implements ThreadFactory
 {
     private final ThreadGroup group;
     private final AtomicInteger threadNumber = new AtomicInteger(1);
     private final String namePrefix;
 
 
-    public DefaultThreadFactory(String poolName)
+    public EventThreadFactory(String poolName)
     {
         SecurityManager s = System.getSecurityManager();
         group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();

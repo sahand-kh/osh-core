@@ -19,10 +19,10 @@ import java.util.Map;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.api.sensor.SensorException;
 import org.sensorhub.api.service.ServiceException;
-import org.sensorhub.impl.sensor.swe.DataStructureHash;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensor;
 import org.sensorhub.impl.sensor.swe.SWETransactionalSensorControl;
 import org.sensorhub.impl.service.swe.Template;
+import org.sensorhub.utils.DataStructureHash;
 import org.sensorhub.impl.sensor.swe.ITaskingCallback;
 import net.opengis.swe.v20.DataComponent;
 import net.opengis.swe.v20.DataEncoding;
@@ -39,7 +39,7 @@ import net.opengis.swe.v20.DataStream;
  */
 public class TransactionalSensorConnector extends DirectSensorConnector implements ISPSTransactionalConnector
 {
-    Map<DataStructureHash, String> structureToTemplateIdMap = new HashMap<DataStructureHash, String>();
+    Map<DataStructureHash, String> structureToTemplateIdMap = new HashMap<>();
     
     
     public TransactionalSensorConnector(SPSServlet service, SensorConnectorConfig config) throws SensorHubException
@@ -98,7 +98,7 @@ public class TransactionalSensorConnector extends DirectSensorConnector implemen
     
     protected final String generateTemplateID(String inputName)
     {
-        return sensor.getLocalID() + '#' + inputName;
+        return sensor.getUniqueIdentifier() + '#' + inputName;
     }
     
     
