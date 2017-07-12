@@ -22,10 +22,11 @@ import org.sensorhub.api.common.IEventListener;
 import org.sensorhub.api.data.DataEvent;
 import org.sensorhub.api.data.IDataProducer;
 import org.sensorhub.api.data.IStreamingDataInterface;
-import org.sensorhub.api.processing.ProcessException;
-import org.sensorhub.impl.SensorHub;
+import org.sensorhub.api.processing.ProcessingException;
 import org.vast.process.DataQueue;
+import org.vast.process.ProcessException;
 import org.vast.swe.SWEHelper;
+import org.vast.util.Asserts;
 
 
 /*
@@ -34,7 +35,7 @@ import org.vast.swe.SWEHelper;
  */
 class SMLOutputInterface implements IStreamingDataInterface
 {
-    SMLStreamProcess parentProcess;
+    SMLProcessImpl parentProcess;
     IEventHandler eventHandler;
     DataComponent outputDef;
     DataEncoding outputEncoding;
@@ -47,8 +48,11 @@ class SMLOutputInterface implements IStreamingDataInterface
     protected DataQueue outputQueue = new DataQueue()
     {
         @Override
-        public synchronized void add(DataBlock data)
+        public synchronized void publishData()
         {
+            Asserts.checkState(sourceComponent.hasData(), "Source component has no data");
+            DataBlock data = sourceComponent.getData();
+            
             long now = System.currentTimeMillis();
             double timeStamp = now / 1000.;
             
@@ -72,7 +76,7 @@ class SMLOutputInterface implements IStreamingDataInterface
     };
     
 
-    protected SMLOutputInterface(SMLStreamProcess parentProcess, DataComponent outputDef) throws ProcessException
+    protected SMLOutputInterface(SMLProcessImpl parentProcess, DataComponent outputDef) throws ProcessingException
     {
         this.parentProcess = parentProcess;
         this.outputDef = outputDef;
@@ -80,22 +84,22 @@ class SMLOutputInterface implements IStreamingDataInterface
         
         try
         {
-            parentProcess.smlProcess.connectOutput(outputDef.getName(), "/", outputQueue);
+            parentProcess.wrapperProcess.connect(outputDef, outputQueue);
         }
-        catch (org.vast.process.SMLException e)
+        catch (ProcessException e)
         {
-            throw new ProcessException("Error while connecting output " + outputDef.getName(), e);
+            throw new ProcessingException("Error while connecting output " + outputDef.getName(), e);
         }
         
         // obtain an event handler for this output
         String moduleID = parentProcess.getLocalID();
         String topic = getName();
-        this.eventHandler = SensorHub.getInstance().getEventBus().registerProducer(moduleID, topic);
+        this.eventHandler = parentProcess.getParentHub().getEventBus().registerProducer(moduleID, topic);
     }
     
 
     @Override
-    public IDataProducer getParentModule()
+    public IDataProducer getProducer()
     {
         return parentProcess;
     }

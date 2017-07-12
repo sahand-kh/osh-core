@@ -14,9 +14,6 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.processing;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.sensorhub.api.config.DisplayInfo;
 import org.sensorhub.api.module.ModuleConfig;
 
 
@@ -30,8 +27,5 @@ import org.sensorhub.api.module.ModuleConfig;
  */
 public class ProcessConfig extends ModuleConfig
 {
-    
-    @DisplayInfo(label="Data sources", desc="List of data sources providing data to the process inputs")
-    public List<DataSourceConfig> dataSources = new ArrayList<DataSourceConfig>(1);
     
 }

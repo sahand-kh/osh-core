@@ -12,20 +12,34 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.api.processing;
+package org.sensorhub.impl.processing;
+
+import java.io.File;
+import org.sensorhub.api.config.DisplayInfo;
+import org.sensorhub.api.processing.ProcessConfig;
 
 
 /**
  * <p>
- * Base for all stream processor config classes
+ * Configuration class for SensorML based processors.
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 20, 2015
  */
-public class StreamProcessConfig extends ProcessConfig
+public class SMLProcessConfig extends ProcessConfig
 {
+    @DisplayInfo(label="SensorML File", desc="Path of SensorML description of the process")
+    public String sensorML;
     
-       
     
+
+    
+    
+    public String getSensorMLPath()
+    {
+        if (sensorML == null)
+            return null;        
+        return new File(sensorML).getAbsolutePath();
+    }
 }

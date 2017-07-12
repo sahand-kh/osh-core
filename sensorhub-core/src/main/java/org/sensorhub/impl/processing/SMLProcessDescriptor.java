@@ -16,13 +16,18 @@ Developer are Copyright (C) 2014 the Initial Developer. All Rights Reserved.
 package org.sensorhub.impl.processing;
 
 import org.sensorhub.api.module.IModule;
-import org.sensorhub.api.module.IModuleProvider;
 import org.sensorhub.api.module.ModuleConfig;
-import org.sensorhub.impl.module.JarModuleProvider;
 
 
-public class SMLStreamProcessDescriptor extends JarModuleProvider implements IModuleProvider
+public class SMLProcessDescriptor extends AbstractProcessProvider
 {
+    
+    public SMLProcessDescriptor()
+    {
+        addImpl(StreamDataSource.INFO);
+    }
+    
+    
     @Override
     public String getModuleName()
     {
@@ -33,20 +38,20 @@ public class SMLStreamProcessDescriptor extends JarModuleProvider implements IMo
     @Override
     public String getModuleDescription()
     {
-        return "Stream process fully configured using a SensorML description";
+        return "Processing module configured using a SensorML description";
     }
     
 
     @Override
     public Class<? extends IModule<?>> getModuleClass()
     {
-        return SMLStreamProcess.class;
+        return SMLProcessImpl.class;
     }
     
 
     @Override
     public Class<? extends ModuleConfig> getModuleConfigClass()
     {
-        return SMLStreamProcessConfig.class;
+        return SMLProcessConfig.class;
     }
 }

@@ -8,27 +8,24 @@ Software distributed under the License is distributed on an "AS IS" basis,
 WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
 for the specific language governing rights and limitations under the License.
  
-Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
+Copyright (C) 2012-2017 Sensia Software LLC. All Rights Reserved.
  
 ******************************* END LICENSE BLOCK ***************************/
 
-package org.sensorhub.api.processing;
+package org.sensorhub.impl.processing;
 
-import org.sensorhub.api.config.DisplayInfo;
-
+import org.sensorhub.api.ISensorHub;
 
 /**
  * <p>
- * Data source configuration to get process input data from a data store
+ * Additional interface for processes that are attached to a given hub, such
+ * as data sources and sinks.
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
- * @since Feb 20, 2015
+ * @since Jun 20, 2017
  */
-public class StorageDataSourceConfig extends DataSourceConfig
+public interface ISensorHubProcess
 {
-
-    @DisplayInfo(label="Storage ID", desc="Local ID of storage to use as data source")
-    public String storageID;
-
+    public void setParentHub(ISensorHub hub);
 }

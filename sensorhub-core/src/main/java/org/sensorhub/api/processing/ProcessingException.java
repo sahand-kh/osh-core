@@ -25,24 +25,24 @@ import org.sensorhub.api.common.SensorHubException;
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @since Feb 22, 2015
  */
-public class ProcessException extends SensorHubException
+public class ProcessingException extends SensorHubException
 {
     private static final long serialVersionUID = 2830272527685987575L;
     
     
-    public ProcessException(String message)
+    public ProcessingException(String message)
     {
         super(message);
     }
     
     
-    public ProcessException(String message, Throwable cause)
+    public ProcessingException(String message, Throwable cause)
     {
         super(message, cause);
     }
     
     
-    public ProcessException(String message, int code, Throwable cause)
+    public ProcessingException(String message, int code, Throwable cause)
     {
         super(message, code, cause);
     }

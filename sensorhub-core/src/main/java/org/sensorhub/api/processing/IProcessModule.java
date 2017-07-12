@@ -14,44 +14,25 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.processing;
 
-import java.util.Map;
 import org.sensorhub.api.module.IModule;
-import net.opengis.swe.v20.DataComponent;
 
 
 /**
  * <p>
- * Base interface for all SensorHub data processing modules
+ * Interface for all event stream processors.<br/>
+ * This type of process is started in a persistent manner and listens to
+ * incoming events. The algorithm is triggered repeatedly each time enough
+ * input data events have been received or some time has ellapsed.<br/>
+ * Each process can listen to multiple event streams and produce a different
+ * type of result (and corresponding event) on each of its output.
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
  * @param <ConfigType> Type of configuration class
- * @since Feb 21, 2015
+ * @since Feb 20, 2015
  */
-public interface IProcessModule<ConfigType extends ProcessConfig> extends IModule<ConfigType>
-{
-    
-    /**
-     * Gets the list of inputs needed by this process.<br/>
-     * Note that input data may contain more than the needed input.
-     * To confirm that a given input is acceptable, call
-     * {@link #isCompatibleDataSource(DataSourceConfig)}
-     * @return map of descriptors of needed inputs
-     */
-    public Map<String, DataComponent> getInputDescriptors();
+public interface IProcessModule<ConfigType extends ProcessConfig> extends IModule<ConfigType>, IDataProcess
+{   
     
     
-    /**
-     * @return map of output descriptors
-     */
-    public Map<String, DataComponent> getOutputDescriptors();
-    
-    
-    /**
-     * Checks that a given data source is acceptable for this process
-     * @param dataSource
-     * @return true if data source is acceptable for this process
-     */
-    public boolean isCompatibleDataSource(DataSourceConfig dataSource);
-
 }

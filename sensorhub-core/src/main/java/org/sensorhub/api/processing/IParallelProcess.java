@@ -14,24 +14,27 @@ Copyright (C) 2012-2015 Sensia Software LLC. All Rights Reserved.
 
 package org.sensorhub.api.processing;
 
-import org.sensorhub.api.config.DisplayInfo;
-
 
 /**
  * <p>
- * Data source configuration to get process input data from another process
+ * Base interface for on-demand processes that support several instances
+ * running in parallel<br/>
+ * The caller is responsible for getting new process instances when appropriate:
+ * A single process instance can be reused several times sequentially, but
+ * separate instances are needed to launch in parallel.
  * </p>
  *
  * @author Alex Robin <alex.robin@sensiasoftware.com>
+ * @param <ConfigType> Type of configuration class
  * @since Feb 20, 2015
  */
-public class ProcessDataSourceConfig extends DataSourceConfig
+public interface IParallelProcess extends IDataProcess
 {
-
-    @DisplayInfo(label="Process ID", desc="Local ID of process to use as data source")
-    public String processID;
+       
+    /**
+     * Retrieves a new instance of this processor configured with default data sources
+     * @return new process instance
+     */
+    public IDataProcess getNewProcessInstance();
     
-    
-    @DisplayInfo(label="Output", desc="Name of process output to use as data source")
-    public String outputName;
 }
